@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+    --color-primary-500: #3b82f6;
+    --color-success: #22c55e;
+    --color-warning: #eab308;
+    --color-danger: #ef4444;
+    --color-severe: #b91c1c;
+}
+
+@layer base {
+    body {
+        @apply transition-colors duration-300 antialiased bg-slate-50 text-slate-900;
+    }
+
+    .dark body {
+        @apply bg-[#0b1120] text-slate-100;
+    }
+}
+
+@layer components {
+    .glass-card {
+        @apply bg-white/70 dark:bg-slate-800/40 border border-white/40 dark:border-white/10 shadow-xl backdrop-blur-xl rounded-2xl relative overflow-hidden;
+    }
+
+    .glass-card::before {
+        content: '';
+        @apply absolute inset-0 bg-gradient-to-br from-white/10 to-transparent dark:from-white/5 opacity-50 pointer-events-none;
+    }
+
+    .btn-primary {
+        @apply px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition-all duration-300 font-semibold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2;
+    }
+
+    .btn-secondary {
+        @apply px-4 py-2 bg-white/10 hover:bg-white/20 dark:bg-slate-800/50 dark:hover:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-lg transition-all duration-300 font-semibold backdrop-blur-md flex items-center justify-center gap-2 hover:-translate-y-0.5 active:translate-y-0;
+    }
+
+    .hero-gradient {
+        @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-500;
+        background-size: 200% auto;
+        animation: gradient 3s linear infinite;
+    }
+}
+
+@layer utilities {
+    .animate-gradient {
+        background-size: 200% auto;
+        animation: gradient 3s linear infinite;
+    }
+
+    @keyframes gradient {
+        0% {
+            background-position: 0% center;
+        }
+
+        100% {
+            background-position: 200% center;
+        }
+    }
+
+    .animate-float {
+        animation: float 6s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        0% {
+            transform: translateY(0px);
+        }
+
+        50% {
+            transform: translateY(-20px);
+        }
+
+        100% {
+            transform: translateY(0px);
+        }
+    }
+}

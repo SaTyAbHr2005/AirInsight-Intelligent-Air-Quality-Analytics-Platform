@@ -5,8 +5,17 @@ import joblib
 import numpy as np
 from app.db import get_connection
 from app.auth import hash_password, verify_password, create_token, verify_token
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ==============================
 # Security Scheme
