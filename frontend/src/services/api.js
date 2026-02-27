@@ -22,6 +22,7 @@ export const fetchHistory = (regionId) => api.get(`/history/${regionId}`);
 export const predictAQI = (data) => api.post('/predict', data);
 export const fetchForecast = (sensorId) => api.get(`/forecast/${sensorId}`);
 export const fetchTopPolluted = () => api.get('/top-polluted');
+export const fetchPublicSensors = () => api.get('/public/sensors');
 
 export const registerAdmin = (username, email, password) =>
     api.post(`/admin/register?username=${encodeURIComponent(username)}&email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`);
@@ -37,5 +38,7 @@ export const loginAdmin = (username, password) => {
 
 export const fetchSensors = () => api.get('/admin/sensors');
 export const updateSensorStatus = (id, isActive) => api.put(`/admin/sensor/${id}/status?is_active=${isActive}`);
+export const deleteSensor = (id) => api.delete(`/admin/sensor/${id}`);
+export const createSensor = (data) => api.post('/admin/sensor', null, { params: data });
 
 export default api;

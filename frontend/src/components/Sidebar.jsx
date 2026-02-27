@@ -9,11 +9,10 @@ const navItems = [
     { path: '/prediction', label: 'Prediction', icon: Activity },
     { path: '/trends', label: 'Trends', icon: TrendingUp },
     { path: '/map', label: 'Map View', icon: MapPin },
-    { path: '/simulator', label: 'Simulator', icon: Play },
 ];
 
 export default function Sidebar() {
-    const { sidebarOpen } = useAppContext();
+    const { sidebarOpen, isAuthenticated } = useAppContext();
 
     return (
         <div className={cn(
@@ -28,7 +27,7 @@ export default function Sidebar() {
             </div>
 
             <nav className="flex-1 py-6 px-3 flex flex-col gap-2 overflow-y-auto">
-                {navItems.map((item) => {
+                {(isAuthenticated ? [...navItems, { path: '/simulator', label: 'Simulator', icon: Play }] : navItems).map((item) => {
                     const Icon = item.icon;
                     return (
                         <NavLink

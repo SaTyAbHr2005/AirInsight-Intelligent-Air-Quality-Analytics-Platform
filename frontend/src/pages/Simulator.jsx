@@ -3,7 +3,42 @@ import { Play, Square, Activity } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { predictAQI } from '../services/api';
 
-const MOCK_REGIONS = ["Mumbai", "Pune", "Nagpur", "Nashik", "Chandrapur"];
+const SENSORS = [
+    { sensor_id: 1, region: "Mumbai", level: "high" },
+    { sensor_id: 2, region: "Mumbai", level: "very_high" },
+    { sensor_id: 3, region: "Pune", level: "moderate" },
+    { sensor_id: 4, region: "Pune", level: "high" },
+    { sensor_id: 5, region: "Nagpur", level: "good" },
+    { sensor_id: 6, region: "Nagpur", level: "moderate" },
+    { sensor_id: 7, region: "Nashik", level: "low" },
+    { sensor_id: 8, region: "Nashik", level: "good" },
+    { sensor_id: 9, region: "Aurangabad", level: "moderate" },
+    { sensor_id: 10, region: "Aurangabad", level: "high" },
+    { sensor_id: 11, region: "Kolhapur", level: "low" },
+    { sensor_id: 12, region: "Kolhapur", level: "good" },
+    { sensor_id: 13, region: "Solapur", level: "high" },
+    { sensor_id: 14, region: "Solapur", level: "very_high" },
+    { sensor_id: 15, region: "Chandrapur", level: "very_high" },
+    { sensor_id: 16, region: "Chandrapur", level: "severe" },
+    { sensor_id: 17, region: "Ratnagiri", level: "low" },
+    { sensor_id: 18, region: "Ratnagiri", level: "good" },
+    { sensor_id: 19, region: "Navi Mumbai", level: "moderate" },
+    { sensor_id: 20, region: "Navi Mumbai", level: "high" },
+];
+
+function generatePollution(level) {
+    const rnd = (min, max) => Math.random() * (max - min) + min;
+    switch (level) {
+        case "low": return { PM2_5: rnd(5, 15), PM10: rnd(15, 40), NO2: rnd(5, 15), CO: rnd(0.1, 0.4), SO2: rnd(2, 8), O3: rnd(10, 25), NH3: rnd(2, 8) };
+        case "good": return { PM2_5: rnd(15, 40), PM10: rnd(40, 80), NO2: rnd(10, 25), CO: rnd(0.3, 0.8), SO2: rnd(5, 15), O3: rnd(20, 50), NH3: rnd(5, 15) };
+        case "moderate": return { PM2_5: rnd(40, 100), PM10: rnd(80, 200), NO2: rnd(25, 60), CO: rnd(0.7, 1.8), SO2: rnd(10, 30), O3: rnd(40, 80), NH3: rnd(10, 30) };
+        case "high": return { PM2_5: rnd(100, 220), PM10: rnd(200, 400), NO2: rnd(60, 120), CO: rnd(1.5, 3), SO2: rnd(20, 60), O3: rnd(60, 120), NH3: rnd(20, 60) };
+        case "very_high": return { PM2_5: rnd(180, 300), PM10: rnd(350, 550), NO2: rnd(90, 180), CO: rnd(2.5, 5), SO2: rnd(40, 100), O3: rnd(80, 160), NH3: rnd(40, 100) };
+        case "severe":
+        default:
+            return { PM2_5: rnd(300, 500), PM10: rnd(500, 800), NO2: rnd(150, 300), CO: rnd(5, 10), SO2: rnd(80, 200), O3: rnd(150, 250), NH3: rnd(80, 150) };
+    }
+}
 
 export default function Simulator() {
     const { isSimulating, setIsSimulating, liveData, setLiveData } = useAppContext();
@@ -16,20 +51,17 @@ export default function Simulator() {
     useEffect(() => {
         if (isSimulating) {
             timerRef.current = setInterval(async () => {
+                const targetSensor = SENSORS[Math.floor(Math.random() * SENSORS.length)];
+                const pollution = generatePollution(targetSensor.level);
+
                 const data = {
-                    sensor_id: Math.floor(Math.random() * 20) + 1,
-                    PM2_5: Math.random() * 100 + 10,
-                    PM10: Math.random() * 150 + 20,
-                    NO2: Math.random() * 80 + 5,
-                    CO: Math.random() * 5 + 0.1,
-                    SO2: Math.random() * 50 + 2,
-                    O3: Math.random() * 60 + 10,
-                    NH3: Math.random() * 40 + 1,
+                    sensor_id: targetSensor.sensor_id,
+                    region_name: targetSensor.region,
+                    ...pollution,
                     temperature: 30,
                     humidity: 60,
                     wind_speed: 10,
                     timestamp: new Date().toISOString(),
-                    region_name: MOCK_REGIONS[Math.floor(Math.random() * MOCK_REGIONS.length)],
                 };
 
                 try {

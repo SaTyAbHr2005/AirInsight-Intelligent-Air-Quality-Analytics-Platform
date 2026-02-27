@@ -1,0 +1,43 @@
+from app.db import get_connection
+import random
+
+locs = {
+    "Mumbai": (19.0760, 72.8777),
+    "Pune": (18.5204, 73.8567),
+    "Nagpur": (21.1458, 79.0882),
+    "Nashik": (20.0110, 73.7903),
+    "Aurangabad": (19.8762, 75.3433),
+    "Kolhapur": (16.7050, 74.2433),
+    "Solapur": (17.6599, 75.9064),
+    "Chandrapur": (19.9535, 79.2961),
+    "Ratnagiri": (16.9902, 73.3120),
+    "Navi Mumbai": (19.0330, 73.0297)
+}
+
+try:
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT s.id, r.name FROM sensors s JOIN regions r ON s.region_id = r.id")
+    rows = cursor.fetchall()
+    
+    updated = 0
+    for sensor_id, region_name in rows:
+        if region_name in locs:
+            lat, lon = locs[region_name]
+            jitter_lat = random.uniform(-0.15, 0.15)
+            jitter_lon = random.uniform(-0.15, 0.15)
+            # Assign random valid radius between 10km and 50km
+            rad = random.randint(10, 50)
+            cursor.execute("UPDATE sensors SET latitude=%s, longitude=%s, radius=%s WHERE id=%s", 
+                          (lat + jitter_lat, lon + jitter_lon, rad, sensor_id))
+            updated += 1
+            print(f"Updated sensor {sensor_id} in {region_name}")
+
+    conn.commit()
+    print(f"Successfully injected map coordinates into {updated} backend sensors.")
+except Exception as e:
+    print("Error:", e)
+finally:
+    cursor.close()
+    conn.close()

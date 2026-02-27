@@ -191,7 +191,8 @@ def get_latest_aqi():
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT r.name, s.id, sr.predicted_aqi, sr.category, sr.timestamp
+        SELECT r.name, s.id, sr.predicted_aqi, sr.category, sr.timestamp,
+               sr.pm25, sr.pm10, sr.no2, sr.co, sr.so2, sr.o3, sr.nh3
         FROM regions r
         JOIN sensors s ON s.region_id = r.id
         JOIN sensor_readings sr ON sr.sensor_id = s.id
@@ -213,7 +214,43 @@ def get_latest_aqi():
             "sensor_id": r[1],
             "aqi": r[2],
             "category": r[3],
-            "timestamp": r[4]
+            "timestamp": r[4],
+            "PM2_5": r[5],
+            "PM10": r[6],
+            "NO2": r[7],
+            "CO": r[8],
+            "SO2": r[9],
+            "O3": r[10],
+            "NH3": r[11]
+        }
+        for r in rows
+    ]
+
+
+@app.get("/public/sensors")
+def get_public_sensors():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT s.id, s.sensor_code, s.latitude, s.longitude, s.radius, r.name, s.is_active
+        FROM sensors s
+        JOIN regions r ON s.region_id = r.id
+    """)
+
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return [
+        {
+            "sensor_id": r[0],
+            "sensor_code": r[1],
+            "latitude": float(r[2]) if r[2] is not None else None,
+            "longitude": float(r[3]) if r[3] is not None else None,
+            "radius": float(r[4]) if r[4] is not None else 20.0,
+            "region": r[5],
+            "is_active": r[6]
         }
         for r in rows
     ]
@@ -225,7 +262,7 @@ def get_history(region_id: int):
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT sr.timestamp, sr.predicted_aqi
+        SELECT sr.timestamp, sr.predicted_aqi, sr.pm25, sr.pm10
         FROM sensor_readings sr
         JOIN sensors s ON s.id = sr.sensor_id
         WHERE s.region_id = %s
@@ -240,7 +277,9 @@ def get_history(region_id: int):
     return [
         {
             "timestamp": r[0],
-            "aqi": r[1]
+            "aqi": r[1],
+            "pm25": r[2] if r[2] is not None else 0,
+            "pm10": r[3] if r[3] is not None else 0
         }
         for r in rows
     ]
@@ -373,16 +412,65 @@ def add_sensor(
     conn = get_connection()
     cursor = conn.cursor()
 
+    # Step 1: Insert Hardware Node
     cursor.execute("""
         INSERT INTO sensors (sensor_code, region_id, latitude, longitude, radius, is_active)
         VALUES (%s,%s,%s,%s,%s,TRUE)
+        RETURNING id
     """, (sensor_code, region_id, latitude, longitude, radius))
+    
+    new_sensor_id = cursor.fetchone()[0]
+
+    # Step 2: Auto-Generate Telemetry bounded to requested Environmental limits
+    import random
+    
+    # 1: Mumbai(high), 2: Pune(moderate), 3: Nagpur(good), 4: Nashik(good), 5: Aurangabad(high)
+    # 6: Kolhapur(good), 7: Solapur(very_high), 8: Chandrapur(severe), 9: Amravati(moderate), 10: Navi Mumbai(high).
+    # Matched broadly to the simulator mapping logic
+    region_levels = {
+        1: "high", 2: "moderate", 3: "good", 4: "good", 5: "high",
+        6: "good", 7: "very_high", 8: "severe", 9: "moderate", 10: "high"
+    }
+    
+    level_ranges = {
+        "good": (0, 50),
+        "low": (51, 100),
+        "moderate": (101, 200),
+        "high": (201, 300),
+        "very_high": (301, 400),
+        "severe": (401, 500)
+    }
+    
+    target_level = region_levels.get(region_id, "moderate")
+    rng = level_ranges[target_level]
+    
+    generated_aqi = random.uniform(rng[0], rng[1])
+    pm25 = generated_aqi * 0.4
+    pm10 = generated_aqi * 0.6
+
+    # Step 3: Insert Initial Telemetry (sensor_readings)
+    cursor.execute("""
+        INSERT INTO sensor_readings
+        (sensor_id, pm25, pm10, no2, co, so2, o3, nh3, predicted_aqi, category)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+    """, (
+        new_sensor_id,
+        pm25,
+        pm10,
+        15.0, # no2
+        0.5,  # co
+        5.0,  # so2
+        20.0, # o3
+        2.0,  # nh3
+        generated_aqi,
+        target_level
+    ))
 
     conn.commit()
     cursor.close()
     conn.close()
 
-    return {"message": "Sensor added"}
+    return {"message": "Sensor deployed successfully", "sensor_id": new_sensor_id}
 
 
 @app.put("/admin/sensor/{sensor_id}/status")
@@ -410,6 +498,8 @@ def delete_sensor(sensor_id: int,
     conn = get_connection()
     cursor = conn.cursor()
 
+    # Explicitly clear child dependencies manually to fulfill Foreign Key constraints
+    cursor.execute("DELETE FROM sensor_readings WHERE sensor_id = %s", (sensor_id,))
     cursor.execute("DELETE FROM sensors WHERE id = %s", (sensor_id,))
     conn.commit()
 

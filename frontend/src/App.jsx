@@ -54,7 +54,7 @@ function App() {
                 <Route path="/prediction" element={<AppLayout><Prediction /></AppLayout>} />
                 <Route path="/trends" element={<AppLayout><Trends /></AppLayout>} />
                 <Route path="/map" element={<AppLayout><MapView /></AppLayout>} />
-                <Route path="/simulator" element={<AppLayout><Simulator /></AppLayout>} />
+                <Route path="/simulator" element={<ProtectedRoute><AppLayout><Simulator /></AppLayout></ProtectedRoute>} />
 
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
