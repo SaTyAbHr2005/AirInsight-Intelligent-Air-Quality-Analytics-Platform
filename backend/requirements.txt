@@ -8,3 +8,6 @@ catboost
 requests
 bcrypt
 python-jose
+python-dotenv
+python-multipart
+passlib[bcrypt]

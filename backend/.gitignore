@@ -22,7 +22,8 @@ ENV/
 # ==============================
 # Models (IMPORTANT)
 # ==============================
-models/*.pkl
+# Tracking `.pkl` files so Render has the trained models on deployment
+# models/*.pkl
 
 # ==============================
 # Data Files (local datasets)
