@@ -69,11 +69,11 @@ export default function Prediction() {
                 </div>
 
                 <div className="md:col-span-1 space-y-6">
-                    <AQICard aqi={result?.predicted_AQI} title="Predicted AQI" className="h-[300px]" />
+                    <AQICard aqi={result?.aqi_estimate} title="Predicted AQI" className="h-[300px]" />
                     {result && (
                         <div className="glass-card p-5 border-l-4 border-blue-500 bg-blue-50/50 dark:bg-blue-900/10">
                             <h4 className="font-bold mb-2 flex items-center gap-2"><ShieldCheck className="text-blue-500" size={20} /> Health Advisory</h4>
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Based on the projection, the air quality falls into the '{result.category}' category. Please take appropriate precautions.</p>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{result.decision_recommendation || 'Maintain standard precautions.'}</p>
                         </div>
                     )}
                 </div>

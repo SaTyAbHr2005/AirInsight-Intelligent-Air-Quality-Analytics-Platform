@@ -3,18 +3,20 @@ import { cn } from '../utils/cn';
 
 const getAQIColor = (aqi) => {
     if (aqi <= 50) return 'text-green-500 bg-green-500/10 border-green-500/30 shadow-green-500/20';
-    if (aqi <= 100) return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/30 shadow-yellow-500/20';
-    if (aqi <= 200) return 'text-orange-500 bg-orange-500/10 border-orange-500/30 shadow-orange-500/20';
-    if (aqi <= 300) return 'text-red-500 bg-red-500/10 border-red-500/30 shadow-red-500/20';
+    if (aqi <= 100) return 'text-lime-500 bg-lime-500/10 border-lime-500/30 shadow-lime-500/20';
+    if (aqi <= 200) return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/30 shadow-yellow-500/20';
+    if (aqi <= 300) return 'text-orange-500 bg-orange-500/10 border-orange-500/30 shadow-orange-500/20';
+    if (aqi <= 400) return 'text-red-500 bg-red-500/10 border-red-500/30 shadow-red-500/20';
     return 'text-rose-700 bg-rose-700/10 border-rose-700/30 shadow-rose-700/20';
 };
 
 const getAQIStatus = (aqi) => {
     if (aqi <= 50) return 'Good';
-    if (aqi <= 100) return 'Moderate';
-    if (aqi <= 200) return 'Unhealthy';
-    if (aqi <= 300) return 'Severe';
-    return 'Hazardous';
+    if (aqi <= 100) return 'Satisfactory';
+    if (aqi <= 200) return 'Moderate';
+    if (aqi <= 300) return 'Poor';
+    if (aqi <= 400) return 'Very Poor';
+    return 'Severe';
 };
 
 export default function AQICard({ aqi, title = "Current AQI", className }) {
