@@ -60,7 +60,20 @@ def seed_hardware():
                 VALUES (%s, %s, %s, %s, %s, %s, TRUE)
             """, (s_id, sensor_code, r_id, lat, lon, rad))
             inserted += 1
-
+            
+            # Inject baseline telemetry so the dashboard loads immediately
+            pm25, pm10 = random.uniform(15.0, 80.0), random.uniform(30.0, 150.0)
+            no2, co, so2 = random.uniform(10.0, 40.0), random.uniform(0.1, 1.5), random.uniform(2.0, 10.0)
+            o3, nh3 = random.uniform(20.0, 60.0), random.uniform(2.0, 8.0)
+            aqi = max(pm25 * 3, pm10 * 1.5)
+            cat = "Moderate" if aqi > 100 else "Satisfactory"
+            
+            cursor.execute("""
+                INSERT INTO sensor_readings
+                (sensor_id, pm25, pm10, no2, co, so2, o3, nh3, predicted_aqi, category)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            """, (s_id, pm25, pm10, no2, co, so2, o3, nh3, aqi, cat))
+            
     conn.commit()
     cursor.close()
     conn.close()
