@@ -3,6 +3,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 import joblib
 import numpy as np
+import psycopg2
 from app.db import get_connection
 from app.auth import hash_password, verify_password, create_token, verify_token
 from fastapi.middleware.cors import CORSMiddleware
