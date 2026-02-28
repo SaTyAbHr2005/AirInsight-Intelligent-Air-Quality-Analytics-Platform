@@ -74,6 +74,10 @@ def seed_hardware():
                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             """, (s_id, pm25, pm10, no2, co, so2, o3, nh3, aqi, cat))
             
+    # Sync sequences so new organically added hardware nodes don't collide with factory-seeded IDs
+    cursor.execute("SELECT setval(pg_get_serial_sequence('sensors', 'id'), COALESCE(MAX(id), 1)) FROM sensors")
+    cursor.execute("SELECT setval(pg_get_serial_sequence('sensor_readings', 'id'), COALESCE(MAX(id), 1)) FROM sensor_readings")
+
     conn.commit()
     cursor.close()
     conn.close()
