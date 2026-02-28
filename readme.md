@@ -1,383 +1,53 @@
-# Decentralized Smart Air Quality Monitoring & Predictive Analytics System
+# AirInsight: Decentralized Smart Air Quality Monitoring & Predictive Analytics 🌍 
 
 ## Overview
-
-This project is a Smart City solution that simulates a decentralized air quality monitoring network across multiple regions of Maharashtra.
-
-The system collects real-time pollution data from distributed virtual sensors, estimates current AQI using machine learning, predicts future AQI using time-series modeling, stores the data, and provides actionable insights for citizens and city authorities.
-
-The architecture supports:
-
-* Real-time monitoring
-* Predictive analytics
-* Decision support
-* Health advisory
-* Future scalability
-
----
-
-# System Architecture Flow
-
-```
-Virtual Sensors (Multi-Region)
-        ↓
-FastAPI (/predict)
-        ↓
-CatBoost AQI Model (Real-time AQI)
-        ↓
-PostgreSQL Storage
-        ↓
-Analytics APIs
-        ↓
-Dashboard
-        ↓
-Time-Series Model (/forecast)
-```
-
----
-
-# Preparation Phase (Completed)
-
-## Task Status
-
-| Task   | Description                           | Status |
-| ------ | ------------------------------------- | ------ |
-| Task 1 | Dataset cleaning & preprocessing      | ✔      |
-| Task 2 | AQI model training (CatBoost)         | ✔      |
-| Task 3 | Prediction API + database storage     | ✔      |
-| Task 4 | Multi-region sensor simulator         | ✔      |
-| Task 5 | Dashboard data APIs                   | ✔      |
-| Task 6 | Time-series forecasting model         | ✔      |
-| Task 7 | Database optimization & schema backup | ✔      |
-| Task 8 | Admin Authentication & Security       | ✔      |
-
-Preparation level: **~95%**
-
-Backend system is fully functional end-to-end.
-
----
-
-# Implemented Components
-
-## 1. Data Processing
-
-* Indian AQI dataset cleaned and structured
-* Feature engineering:
-
-  * PM2.5, PM10, NO2, CO, SO2, O3, NH3
-  * hour, day, month, year
-
----
-
-## 2. Real-Time AQI Model
-
-**Model:** CatBoost Regressor
-**Input:** Pollutant values + time features
-**Output:**
-
-* Current AQI estimate
-* AQI Category
-
-Purpose:
-Convert raw sensor pollution data into actionable air quality information.
-
----
-
-## 3. Time-Series Forecast Model
-
-**Approach:** Lag-based CatBoost forecasting
-**Input:** Previous AQI values (last few hours)
-**Output:** Next-hour AQI prediction
-
-API:
-
-```
-GET /forecast/{sensor_id}
-```
-
-Purpose:
-Enable proactive pollution warning.
-
----
-
-## 4. Virtual Sensor Network
-
-* 20 sensors across Maharashtra
-* Region-wise pollution profiles:
-
-  * Low
-  * Good
-  * Moderate
-  * High (Poor)
-  * Very High
-  * Severe
-* Sends data every 5 seconds
-
-Purpose:
-Simulate decentralized IoT network.
-
----
-
-## 5. Backend (FastAPI)
-
-### POST /predict
-
-* Receives sensor data
-* Predicts AQI
-* Determines AQI category
-* Detects pollution source (rule-based)
-* Generates decision recommendation
-* Stores data
-
-### Admin APIs (Protected via JWT)
-
-* `POST /admin/register`
-* `POST /admin/login`
-* `GET /admin/sensors`
-* `POST /admin/sensor`
-* `PUT /admin/sensor/{sensor_id}/status`
-* `DELETE /admin/sensor/{sensor_id}`
-
----
-
-## 6. Database (PostgreSQL)
-
-Tables:
-
-* regions
-* sensors
-* sensor_readings
-
-Stored information:
-
-* Pollutant values
-* Predicted AQI
-* AQI category
-* Pollution source
-* Decision recommendation
-* Timestamp
-
-Index for performance:
-
-```
-CREATE INDEX idx_readings_sensor_time
-ON sensor_readings(sensor_id, timestamp DESC);
-```
-
----
-
-## 7. Analytics APIs (Ready)
-
-| API                   | Purpose               |
-| --------------------- | --------------------- |
-| /latest               | Latest AQI per region |
-| /history/{region_id}  | AQI trend data        |
-| /top-polluted         | Most polluted regions |
-| /forecast/{sensor_id} | Next-hour AQI         |
-
----
-
-# Hackathon Implementation Plan
-
-Remaining work focuses strictly on **Deployment** as all Frontend Features are completed.
-
----
-
-# Features to Implement During Hackathon
-
-## 1. Real-Time AQI Dashboard
-
-**Goal:** Show current air quality across regions.
-
-Implementation:
-
-* Fetch `/latest`
-* Display:
-
-  * Region
-  * AQI
-  * Category
-* Color-coded status
-
----
-
-## 2. Pollution Heatmap (Map View)
-
-**Goal:** Visualize AQI geographically.
-
-Implementation:
-
-* Leaflet + OpenStreetMap
-* Region coordinates from DB
-* Marker color based on AQI
-
----
-
-## 3. AQI Trend Visualization
-
-**Goal:** Show pollution trend over time.
-
-Implementation:
-
-* API: `/history/{region_id}`
-* Line chart using Chart.js / Recharts
-
----
-
-## 4. Future AQI Prediction Display
-
-**Goal:** Show upcoming air quality risk.
-
-Implementation:
-
-* API: `/forecast/{sensor_id}`
-* Display next-hour AQI and category
-* Show rising/falling trend indicator
-
----
-
-## 5. Pollution Source Identification
-
-**Goal:** Identify major pollution cause.
-
-Logic:
-
-* High NO2 → Traffic
-* High SO2 → Industrial
-* High PM10 → Dust/Construction
-* Else → Mixed
-
-Display source on dashboard.
-
----
-
-## 6. Health Advisory Panel
-
-**Goal:** Provide citizen safety guidance.
-
-Rule-based:
-
-| AQI     | Advice                 |
-| ------- | ---------------------- |
-| 0–50    | Safe                   |
-| 51–100  | Sensitive caution      |
-| 101–200 | Limit outdoor activity |
-| 201–300 | Wear mask              |
-| 301–400 | Stay indoors           |
-| 400+    | Health emergency       |
-
----
-
-## 7. Decision Support for Authorities
-
-**Goal:** Suggest control actions.
-
-Logic:
-
-* Traffic source → Vehicle restriction
-* Industrial source → Emission control
-* Dust source → Stop construction
-* Severe AQI → Emergency measures
-
----
-
-## 8. Hotspot Detection
-
-**Goal:** Identify worst affected regions.
-
-Implementation:
-
-* API: `/top-polluted`
-* Show Top 5 regions
-
----
-
-## 9. City Air Quality Score
-
-**Goal:** Show overall air condition.
-
-Implementation:
-
-* Average AQI per region
-* Display summary indicator
-
----
-
-# Deployment Plan
-
-| Component | Platform          |
-| --------- | ----------------- |
-| Backend   | Render            |
-| Database  | Render PostgreSQL |
-| Frontend  | Vercel            |
-
-Steps:
-
-1. Push backend to GitHub
-2. Create Render Web Service
-3. Create PostgreSQL instance
-4. Configure environment variables
-5. Deploy React frontend on Vercel
-
----
-
-# Project Impact
-
-### Citizens
-
-* Real-time AQI awareness
-* Health safety guidance
-* Future risk alerts
-
-### Authorities
-
-* Pollution hotspot detection
-* Source-based action planning
-* Decision support
-
-### Researchers
-
-* Historical data analysis
-* Trend monitoring
-
----
-
-# Future Scope (Post Hackathon)
-
-* Real IoT hardware sensors
-* Continuous model retraining
-* Anomaly detection
-* Mobile application
-* Multi-state deployment
-
----
-
-# Tech Stack
-
-Backend: FastAPI
-Database: PostgreSQL
-ML: CatBoost (Real-time + Forecast)
-Simulation: Python
-Frontend: React
-Maps: Leaflet
-Deployment: Render + Vercel
-
----
-
-# Final Status
-
-Backend: ✔ Complete
-Real-time AQI Model: ✔ Complete
-Forecast Model: ✔ Complete
-Sensor Simulation: ✔ Complete
-Database: ✔ Complete
-APIs: ✔ Complete
-Admin Authentication: ✔ Complete
-
-Remaining during Hackathon:
-
-* Deployment (Backend to Render, Frontend to Vercel)
-
-All UI Components (Dashboard, Map Visualization, Analytics, Prediction, Sidebar Widgets) have been completely developed, tested, and polished.
-
-The system is fully ready for final production deployment and demonstration.
+AirInsight is a comprehensive Smart City solution that deploys a decentralized virtual air quality monitoring network. Designed to analyze pollution patterns across various regions, the system collects real-time localized data, uses machine learning to estimate Current AQI, and deploys time-series forecasting models to predict future air quality trends. 
+
+This platform acts as an integrated decision-support system, providing real-time geographical visualizations, health advisories, and actionable insights for both citizens and local city authorities.
+
+## Core Features
+* **Decentralized Virtual Sensor Network**: Simulates diverse geographical hardware nodes continuously streaming localized environmental telemetry (PM2.5, PM10, NO2, CO, SO2, O3, NH3).
+* **Real-Time Predictive Modeling**: Utilizes an advanced CatBoost Regression pipeline to dynamically calculate live AQI and isolate specific primary pollution sources (Traffic, Industrial, Construction etc.).
+* **Time-Series Forecasting**: Deploys secondary Lag-based CatBoost architectures to forecast upcoming next-hour AQI trends, providing proactive risk warnings.
+* **Interactive Geo-Spatial Mapping**: Visualizes the entire sensor network on a live interactive OpenStreetMap utilizing Leaflet, color-coded strictly by Health Impact categories.
+* **Intelligent Admin Control Panel**: Provides secured, JWT-authenticated capabilities for administrators to remotely provision, toggle, and permanently decommission regional hardware sensors.
+* **Contextual Health Advisories**: Automatically maps extreme pollution conditions to actionable public health guidance.
+
+## Architecture & Data Flow
+1. **Edge Telemetry**: Virtual Sensors distributed across regions stream raw atmospheric composition data.
+2. **Ingestion & Validation**: FastAPI backend securely validates and processes the incoming telemetry.
+3. **Machine Learning Pipeline**: Data is fed into pre-trained CatBoost models to evaluate real-time hazards and formulate future predictions.
+4. **Persistent Storage**: Validated analytics are heavily indexed and stored in a highly relational PostgreSQL database.
+5. **Client Presentation**: The React Frontend fetches refined data to render responsive, high-fidelity real-time dashboards and geographical heatmaps. 
+
+## Technology Stack
+* **Frontend:** React, HTML, Vanilla CSS, Vite, Leaflet Maps, Chart.js, Lucide Icons
+* **Backend:** Python, FastAPI, Contextual Dependency Injection
+* **Machine Learning:** CatBoost Regressors, Scikit-learn, Numpy, Pandas
+* **Database:** PostgreSQL, psycopg2
+* **Infrastructure:** AWS EC2, Docker Compose, Nginx Reverse Proxy, Gunicorn, Uvicorn
+
+## Infrastructure & Cloud Deployment
+The system is perfectly built within a declarative Dockerized framework, expertly architected to run exceptionally well on minimal remote resources (such as the AWS EC2 Free Tier).
+
+- **Production Frontend**: The React SPA is cleanly built and statically served directly by highly optimized Nginx Reverse Proxies, effectively solving backend CORS and routing issues natively.
+- **Backend Portability**: The Python endpoints execute within isolated, ultra-efficient Linux environments handling robust network traffic smoothly via Uvicorn workers.
+
+## Project Impact
+
+### 🛡️ For Citizens
+* **Real-time Awareness**: Check localized AQI seamlessly from anywhere via the Web Dashboard.
+* **Health Safety**: Contextualized, straightforward public-health guidance natively derived from scientific severity indices.
+
+### 🏛️ For Local Authorities
+* **Hotspot Detection**: Instantaneous tracking isolating the worst affected environments on a live topological map.
+* **Source Isolation**: Pinpointing precise mathematical origin causes (e.g. Traffic vs Construction) dynamically informing policy responses natively within seconds.
+
+## Future Scope
+While the core analytical platform is flawlessly structured and deployed, the overarching infrastructure is inherently designed to massively scale dynamically over subsequent iterations:
+
+1. **Physical Hardware Integration**: Transitioning the virtual telemetry pipelines directly to physical, low-cost micro-controller IoT sensors installed across physical urban environments.
+2. **Alert Broadcasting System**: Integrating SMS, Email, or Web-Socket push notifications directly to citizens when their hyper-local network sectors spontaneously detect extremely critical PM2.5 atmospheric spikes.
+3. **Advanced Anomaly Detection Systems**: Implementing advanced structural algorithms (like Isolation Forests) natively alongside CatBoost models to instantly identify and alarm operators to entirely unnatural chemical signatures (e.g., highly localized industrial invisible gas leaks in factory districts).
+4. **Native Mobile Application Suite**: Porting the responsive web dashboard inherently into a compiled cross-platform React Native / Flutter mobile application designed purely for broader systemic citizen engagement.
+5. **Cross-State Scaling Configurations**: Expanding the micro-regional focus dynamically across boundaries by continuously ingesting vast topological, wind vectors, and deeper meteorological data sets to support state-wide networking topologies.
