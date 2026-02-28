@@ -39,6 +39,6 @@ export const loginAdmin = (username, password) => {
 export const fetchSensors = () => api.get('/admin/sensors');
 export const updateSensorStatus = (id, isActive) => api.put(`/admin/sensor/${id}/status?is_active=${isActive}`);
 export const deleteSensor = (id) => api.delete(`/admin/sensor/${id}`);
-export const createSensor = (data) => api.post('/admin/sensor', null, { params: data });
+export const createSensor = (data) => api.post('/admin/sensor', data);
 
 export default api;

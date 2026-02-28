@@ -73,6 +73,13 @@ class AQIRequest(BaseModel):
     month: int
     weekday: int
 
+class SensorCreate(BaseModel):
+    sensor_code: str
+    region_id: int
+    latitude: float
+    longitude: float
+    radius: int
+
 
 # ==============================
 # Public Routes
@@ -402,75 +409,77 @@ def get_sensors(admin_id: int = Depends(get_current_admin)):
 
 @app.post("/admin/sensor")
 def add_sensor(
-    sensor_code: str,
-    region_id: int,
-    latitude: float,
-    longitude: float,
-    radius: int,
+    payload: SensorCreate,
     admin_id: int = Depends(get_current_admin)
 ):
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Step 1: Insert Hardware Node
-    cursor.execute("""
-        INSERT INTO sensors (sensor_code, region_id, latitude, longitude, radius, is_active)
-        VALUES (%s,%s,%s,%s,%s,TRUE)
-        RETURNING id
-    """, (sensor_code, region_id, latitude, longitude, radius))
-    
-    new_sensor_id = cursor.fetchone()[0]
+    try:
+        # Step 1: Insert Hardware Node
+        cursor.execute("""
+            INSERT INTO sensors (sensor_code, region_id, latitude, longitude, radius, is_active)
+            VALUES (%s,%s,%s,%s,%s,TRUE)
+            RETURNING id
+        """, (payload.sensor_code, payload.region_id, payload.latitude, payload.longitude, payload.radius))
+        new_sensor_id = cursor.fetchone()[0]
 
-    # Step 2: Auto-Generate Telemetry bounded to requested Environmental limits
-    import random
-    
-    # 1: Mumbai(high), 2: Pune(moderate), 3: Nagpur(good), 4: Nashik(good), 5: Aurangabad(high)
-    # 6: Kolhapur(good), 7: Solapur(very_high), 8: Chandrapur(severe), 9: Amravati(moderate), 10: Navi Mumbai(high).
-    # Matched broadly to the simulator mapping logic
-    region_levels = {
-        1: "high", 2: "moderate", 3: "good", 4: "good", 5: "high",
-        6: "good", 7: "very_high", 8: "severe", 9: "moderate", 10: "high"
-    }
-    
-    level_ranges = {
-        "good": (0, 50),
-        "low": (51, 100),
-        "moderate": (101, 200),
-        "high": (201, 300),
-        "very_high": (301, 400),
-        "severe": (401, 500)
-    }
-    
-    target_level = region_levels.get(region_id, "moderate")
-    rng = level_ranges[target_level]
-    
-    generated_aqi = random.uniform(rng[0], rng[1])
-    pm25 = generated_aqi * 0.4
-    pm10 = generated_aqi * 0.6
+        # Step 2: Auto-Generate Telemetry bounded to requested Environmental limits
+        import random
+        
+        # 1: Mumbai(high), 2: Pune(moderate), 3: Nagpur(good), 4: Nashik(good), 5: Aurangabad(high)
+        # 6: Kolhapur(good), 7: Solapur(very_high), 8: Chandrapur(severe), 9: Amravati(moderate), 10: Navi Mumbai(high).
+        # Matched broadly to the simulator mapping logic
+        region_levels = {
+            1: "high", 2: "moderate", 3: "good", 4: "good", 5: "high",
+            6: "good", 7: "very_high", 8: "severe", 9: "moderate", 10: "high"
+        }
+        
+        level_ranges = {
+            "good": (0, 50),
+            "low": (51, 100),
+            "moderate": (101, 200),
+            "high": (201, 300),
+            "very_high": (301, 400),
+            "severe": (401, 500)
+        }
+        
+        target_level = region_levels.get(payload.region_id, "moderate")
+        rng = level_ranges[target_level]
+        
+        generated_aqi = random.uniform(rng[0], rng[1])
+        pm25 = generated_aqi * 0.4
+        pm10 = generated_aqi * 0.6
 
-    # Step 3: Insert Initial Telemetry (sensor_readings)
-    cursor.execute("""
-        INSERT INTO sensor_readings
-        (sensor_id, pm25, pm10, no2, co, so2, o3, nh3, predicted_aqi, category)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-    """, (
-        new_sensor_id,
-        pm25,
-        pm10,
-        15.0, # no2
-        0.5,  # co
-        5.0,  # so2
-        20.0, # o3
-        2.0,  # nh3
-        generated_aqi,
-        target_level
-    ))
+        # Step 3: Insert Initial Telemetry (sensor_readings)
+        cursor.execute("""
+            INSERT INTO sensor_readings
+            (sensor_id, pm25, pm10, no2, co, so2, o3, nh3, predicted_aqi, category)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        """, (
+            new_sensor_id,
+            pm25,
+            pm10,
+            15.0, # no2
+            0.5,  # co
+            5.0,  # so2
+            20.0, # o3
+            2.0,  # nh3
+            generated_aqi,
+            target_level
+        ))
 
-    conn.commit()
-    cursor.close()
-    conn.close()
-
-    return {"message": "Sensor deployed successfully", "sensor_id": new_sensor_id}
+        conn.commit()
+        return {"message": "Sensor deployed successfully", "sensor_id": new_sensor_id}
+    except psycopg2.errors.UniqueViolation:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail="A sensor with this Identity Code already exists.")
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
 
 
 @app.put("/admin/sensor/{sensor_id}/status")
