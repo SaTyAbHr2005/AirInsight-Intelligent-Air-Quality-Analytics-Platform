@@ -1,11 +1,16 @@
 import psycopg2
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 DB_CONFIG = {
-    "host": "localhost",
-    "database": "air_quality_db",
-    "user": "postgres",
-    "password": "Satya@2005",
-    "port": "5432"
+    "host": os.getenv("DB_HOST", "localhost"),
+    "database": os.getenv("DB_NAME", "air_quality_db"),
+    "user": os.getenv("DB_USER", "postgres"),
+    "password": os.getenv("DB_PASSWORD", "Satya@2005"),
+    "port": os.getenv("DB_PORT", "5432")
 }
 
 

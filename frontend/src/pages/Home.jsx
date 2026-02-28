@@ -39,7 +39,7 @@ export default function Home() {
                     </p>
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
                         <Link to="/dashboard" className="btn-primary px-8 py-4 text-lg w-full sm:w-auto shadow-xl shadow-blue-500/30">
-                            Open Dashboard Dashboard <ArrowRight size={20} />
+                            Open Dashboard <ArrowRight size={20} />
                         </Link>
                         <Link to="/admin" className="btn-secondary px-8 py-4 text-lg w-full sm:w-auto">
                             Login to Admin Shield <ShieldCheck size={20} />
