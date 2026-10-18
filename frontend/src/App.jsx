@@ -1,65 +1,51 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Sidebar from './components/Sidebar';
-import Navbar from './components/Navbar';
-import Dashboard from './pages/Dashboard';
-import Prediction from './pages/Prediction';
-import Trends from './pages/Trends';
-import MapView from './pages/MapView';
-import Simulator from './pages/Simulator';
-import Home from './pages/Home';
-import AdminLogin from './pages/AdminLogin';
-import AdminRegister from './pages/AdminRegister';
-import AdminDashboard from './pages/AdminDashboard';
+import { lazy, Suspense } from 'react';
+import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
+import Shell from './components/Shell';
 import { useAppContext } from './context/AppContext';
+import { Glyph } from './components/Wordmark';
 
-const AppLayout = ({ children }) => {
-    const { sidebarOpen } = useAppContext();
+const Story = lazy(() => import('./pages/Story'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Trends = lazy(() => import('./pages/Trends'));
+const MapView = lazy(() => import('./pages/MapView'));
+const Prediction = lazy(() => import('./pages/Prediction'));
+const Simulator = lazy(() => import('./pages/Simulator'));
+const AdminLogin = lazy(() => import('./pages/AdminLogin'));
+const AdminRegister = lazy(() => import('./pages/AdminRegister'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 
-    return (
-        <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-[#0b1120] transition-colors duration-300 w-full">
-            <Sidebar />
-            <div className={`flex flex-col flex-1 transition-all duration-300 overflow-hidden ${sidebarOpen ? 'md:ml-64 ml-20' : 'ml-20'}`}>
-                <Navbar />
-                <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 w-full">
-                    <div className="max-w-7xl mx-auto space-y-6">
-                        {children}
-                    </div>
-                </main>
-            </div>
-        </div>
-    );
-};
+const Loading = () => (
+    <div className="h-screen grid place-items-center bg-bg text-ink">
+        <Glyph className="w-12 h-12 motion-safe:animate-pulse" />
+    </div>
+);
 
 const ProtectedRoute = ({ children }) => {
     const { isAuthenticated } = useAppContext();
-    if (!isAuthenticated) return <Navigate to="/admin" replace />;
-    return children;
+    return isAuthenticated ? children : <Navigate to="/admin" replace />;
 };
 
-function App() {
+export default function App() {
     return (
         <Router>
-            <Routes>
-                {/* Public Landing & Auth */}
-                <Route path="/" element={<Home />} />
-                <Route path="/admin" element={<AdminLogin />} />
-                <Route path="/admin/register" element={<AdminRegister />} />
+            <Suspense fallback={<Loading />}>
+                <Routes>
+                    <Route path="/" element={<Story />} />
+                    <Route path="/admin" element={<AdminLogin />} />
+                    <Route path="/admin/register" element={<AdminRegister />} />
+                    <Route path="/admin/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
 
-                {/* Protected Admin */}
-                <Route path="/admin/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+                    <Route element={<Shell />}>
+                        <Route path="/dashboard" element={<Dashboard />} />
+                        <Route path="/trends" element={<Trends />} />
+                        <Route path="/map" element={<MapView />} />
+                        <Route path="/prediction" element={<Prediction />} />
+                        <Route path="/simulator" element={<ProtectedRoute><Simulator /></ProtectedRoute>} />
+                    </Route>
 
-                {/* Public Application */}
-                <Route path="/dashboard" element={<AppLayout><Dashboard /></AppLayout>} />
-                <Route path="/prediction" element={<AppLayout><Prediction /></AppLayout>} />
-                <Route path="/trends" element={<AppLayout><Trends /></AppLayout>} />
-                <Route path="/map" element={<AppLayout><MapView /></AppLayout>} />
-                <Route path="/simulator" element={<ProtectedRoute><AppLayout><Simulator /></AppLayout></ProtectedRoute>} />
-
-                <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+            </Suspense>
         </Router>
     );
 }
-
-export default App;

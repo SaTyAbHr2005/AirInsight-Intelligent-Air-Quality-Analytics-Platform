@@ -1,0 +1,6 @@
+# Offline training / data tooling only (not installed on the server)
+-r requirements.txt
+pandas
+scikit-learn
+xgboost
+matplotlib

@@ -23,7 +23,14 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // JSX member/renamed components (motion.div, icon: Icon) aren't seen as uses without eslint-plugin-react
+      'no-unused-vars': ['error', { varsIgnorePattern: '^([A-Z_]|motion$)', argsIgnorePattern: '^[A-Z_]' }],
+      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
+  },
+  {
+    // React Three Fiber mutates three.js objects every frame by design
+    files: ['src/three/**', 'src/components/ButterflyGauge.jsx'],
+    rules: { 'react-hooks/immutability': 'off' },
   },
 ])

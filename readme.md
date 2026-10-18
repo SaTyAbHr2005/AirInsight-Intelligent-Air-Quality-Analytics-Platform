@@ -17,21 +17,42 @@ This platform acts as an integrated decision-support system, providing real-time
 1. **Edge Telemetry**: Virtual Sensors distributed across regions stream raw atmospheric composition data.
 2. **Ingestion & Validation**: FastAPI backend securely validates and processes the incoming telemetry.
 3. **Machine Learning Pipeline**: Data is fed into pre-trained CatBoost models to evaluate real-time hazards and formulate future predictions.
-4. **Persistent Storage**: Validated analytics are heavily indexed and stored in a highly relational PostgreSQL database.
+4. **Persistent Storage**: Readings, sensors and regions live in MongoDB (Atlas in production). Sensor histories are seeded from real CPCB hourly station records, and the network keeps reporting on its own every 15 minutes, with no background worker needed.
 5. **Client Presentation**: The React Frontend fetches refined data to render responsive, high-fidelity real-time dashboards and geographical heatmaps. 
 
 ## Technology Stack
-* **Frontend:** React, HTML, Vanilla CSS, Vite, Leaflet Maps, Chart.js, Lucide Icons
-* **Backend:** Python, FastAPI, Contextual Dependency Injection
-* **Machine Learning:** CatBoost Regressors, Scikit-learn, Numpy, Pandas
-* **Database:** PostgreSQL, psycopg2
-* **Infrastructure:** AWS EC2, Docker Compose, Nginx Reverse Proxy, Gunicorn, Uvicorn
+* **Frontend:** React 19, Vite, Tailwind CSS v4, three.js with React Three Fiber and Drei (3D story and butterfly gauge), GSAP ScrollTrigger and Lenis (scroll storytelling), TanStack Query, Framer Motion, Recharts, React Leaflet, Sonner
+* **Backend:** Python, FastAPI, PyMongo
+* **Machine Learning:** CatBoost Regressors (AQI estimation and lag-based forecasting)
+* **Database:** MongoDB Atlas
+* **Infrastructure:** Render (API), Vercel (frontend); Docker Compose for local runs
 
-## Infrastructure & Cloud Deployment
-The system is perfectly built within a declarative Dockerized framework, expertly architected to run exceptionally well on minimal remote resources (such as the AWS EC2 Free Tier).
+## Running locally
 
-- **Production Frontend**: The React SPA is cleanly built and statically served directly by highly optimized Nginx Reverse Proxies, effectively solving backend CORS and routing issues natively.
-- **Backend Portability**: The Python endpoints execute within isolated, ultra-efficient Linux environments handling robust network traffic smoothly via Uvicorn workers.
+```bash
+# 1. MongoDB: either a local instance or your Atlas URI in backend/.env (see backend/.env.example)
+docker run -d --name airinsight-mongo -p 27017:27017 mongo:7
+
+# 2. API (seeds an empty database on first start)
+cd backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+
+# 3. Frontend (proxies /api to localhost:8000)
+cd frontend
+npm install
+npm run dev
+```
+
+Reseed at any time with `python -m app.seed --reset` from `backend/`. Default local admin: `admin1` / `admin123` (set `ADMIN_PASSWORD` to change it).
+
+## Deployment (free tier)
+
+1. **MongoDB Atlas**: create a free M0 cluster, a database user, and allow network access from `0.0.0.0/0`. Copy the connection string.
+2. **Render (API)**: New, then Blueprint, then pick this repo. `render.yaml` creates the `airinsight-api` web service. Fill in `MONGODB_URI`, `ADMIN_PASSWORD` and `CORS_ORIGINS` (your Vercel URL). On first boot the API seeds Atlas automatically.
+3. **Vercel (frontend)**: import the repo with **Root Directory** `frontend`. Set `VITE_API_URL` to the Render URL, e.g. `https://airinsight-api.onrender.com`.
+
+Render's free plan sleeps after 15 idle minutes, so the first request after a nap takes around 50 seconds. When it wakes, the sensor network catches up with a fresh round of readings.
 
 ## Project Impact
 

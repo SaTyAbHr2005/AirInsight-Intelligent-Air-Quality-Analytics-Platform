@@ -1,81 +1,196 @@
 @import "tailwindcss";
+@import "@fontsource/young-serif/400.css";
+@import "@fontsource-variable/hanken-grotesk";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-@theme {
-    --color-primary-500: #3b82f6;
-    --color-success: #22c55e;
-    --color-warning: #eab308;
-    --color-danger: #ef4444;
-    --color-severe: #b91c1c;
+/* Field-journal tokens. Light = clear day over the meadow, dark = night in the canopy. */
+:root {
+    --bg: #edf2e4;
+    --surface: #f7f9f1;
+    --raised: #ffffff;
+    --ink: #0f2a20;
+    --muted: #4f6357;
+    --line: #cdd8c4;
+    --leaf: #3f8a5a;
+    --sulphur: #ebc03f;
+    --crimson: #c2415d;
+    --umber: #7a6a4f;
+    --chlorophyll: #0f2a20;
+}
+
+.dark {
+    --bg: #0c1f17;
+    --surface: #12291f;
+    --raised: #183427;
+    --ink: #e7eedd;
+    --muted: #9fb3a4;
+    --line: #23402f;
+    --leaf: #6bbf86;
+}
+
+@theme inline {
+    --font-display: "Young Serif", Georgia, serif;
+    --font-sans: "Hanken Grotesk Variable", system-ui, sans-serif;
+
+    --color-bg: var(--bg);
+    --color-surface: var(--surface);
+    --color-raised: var(--raised);
+    --color-ink: var(--ink);
+    --color-muted: var(--muted);
+    --color-line: var(--line);
+    --color-leaf: var(--leaf);
+    --color-sulphur: var(--sulphur);
+    --color-crimson: var(--crimson);
+    --color-umber: var(--umber);
+    --color-chlorophyll: var(--chlorophyll);
 }
 
 @layer base {
-    body {
-        @apply transition-colors duration-300 antialiased bg-slate-50 text-slate-900;
+    html {
+        font-family: var(--font-sans);
+        font-feature-settings: "tnum" 1;
+        -webkit-font-smoothing: antialiased;
     }
 
-    .dark body {
-        @apply bg-[#0b1120] text-slate-100;
+    body {
+        background: var(--bg);
+        color: var(--ink);
+        transition: background-color 0.4s, color 0.4s;
+    }
+
+    ::selection {
+        background: var(--sulphur);
+        color: var(--chlorophyll);
+    }
+
+    :focus-visible {
+        outline: 2px solid var(--sulphur);
+        outline-offset: 3px;
+        border-radius: 4px;
+    }
+
+    h1, h2, h3 {
+        font-family: var(--font-display);
+        font-weight: 400;
+        letter-spacing: -0.01em;
+        text-wrap: balance;
+    }
+
+    p {
+        text-wrap: pretty;
     }
 }
 
 @layer components {
-    .glass-card {
-        @apply bg-white/70 dark:bg-slate-800/40 border border-white/40 dark:border-white/10 shadow-xl backdrop-blur-xl rounded-2xl relative overflow-hidden;
+    /* Panels: flat leaf-paper sheets; hierarchy comes from size, not shadows */
+    .panel {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 18px;
     }
 
-    .glass-card::before {
-        content: '';
-        @apply absolute inset-0 bg-gradient-to-br from-white/10 to-transparent dark:from-white/5 opacity-50 pointer-events-none;
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.7rem 1.25rem;
+        border-radius: 999px;
+        font-weight: 600;
+        transition: transform 0.15s, background-color 0.2s, color 0.2s;
     }
 
-    .btn-primary {
-        @apply px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition-all duration-300 font-semibold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2;
+    .btn:active {
+        transform: scale(0.97);
     }
 
-    .btn-secondary {
-        @apply px-4 py-2 bg-white/10 hover:bg-white/20 dark:bg-slate-800/50 dark:hover:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-lg transition-all duration-300 font-semibold backdrop-blur-md flex items-center justify-center gap-2 hover:-translate-y-0.5 active:translate-y-0;
+    .btn:disabled {
+        opacity: 0.5;
+        pointer-events: none;
     }
 
-    .hero-gradient {
-        @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-500;
-        background-size: 200% auto;
-        animation: gradient 3s linear infinite;
+    .btn-sulphur {
+        background: var(--sulphur);
+        color: var(--chlorophyll);
+    }
+
+    .btn-sulphur:hover {
+        background: #f3cf5c;
+    }
+
+    .btn-ghost {
+        border: 1px solid var(--line);
+        color: var(--ink);
+    }
+
+    .btn-ghost:hover {
+        background: var(--raised);
+    }
+
+    .field {
+        width: 100%;
+        background: var(--raised);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 0.65rem 0.9rem;
+        color: var(--ink);
+        outline: none;
+        transition: border-color 0.2s;
+    }
+
+    .field:focus {
+        border-color: var(--leaf);
+    }
+
+    .field-label {
+        display: block;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--muted);
+        margin-bottom: 0.35rem;
     }
 }
 
-@layer utilities {
-    .animate-gradient {
-        background-size: 200% auto;
-        animation: gradient 3s linear infinite;
-    }
+/* Band colours are tuned for daylight; lift big AQI numerals at night */
+.dark .aqi-num {
+    filter: brightness(1.55) saturate(0.85);
+}
 
-    @keyframes gradient {
-        0% {
-            background-position: 0% center;
-        }
+/* Leaflet, dressed for the journal */
+.leaflet-container {
+    background: var(--bg);
+    font-family: var(--font-sans);
+}
 
-        100% {
-            background-position: 200% center;
-        }
-    }
+.journal-tiles {
+    filter: sepia(0.35) hue-rotate(40deg) saturate(0.7) brightness(1.02);
+}
 
-    .animate-float {
-        animation: float 6s ease-in-out infinite;
-    }
+.dark .journal-tiles {
+    filter: invert(1) hue-rotate(160deg) sepia(0.4) saturate(0.6) brightness(0.8);
+}
 
-    @keyframes float {
-        0% {
-            transform: translateY(0px);
-        }
+.leaflet-popup-content-wrapper,
+.leaflet-tooltip {
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 8px 30px rgb(15 42 32 / 0.18);
+}
 
-        50% {
-            transform: translateY(-20px);
-        }
+.leaflet-popup-tip {
+    background: var(--surface);
+}
 
-        100% {
-            transform: translateY(0px);
-        }
+.leaflet-tooltip-top::before {
+    border-top-color: var(--line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
     }
 }

@@ -1,17 +1,30 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 
 const AppContext = createContext();
 
-export const AppProvider = ({ children }) => {
-    const [darkMode, setDarkMode] = useState(true);
-    const [sidebarOpen, setSidebarOpen] = useState(true);
-    const [liveData, setLiveData] = useState([]);
-    const [isSimulating, setIsSimulating] = useState(false);
+const stored = (key, fallback) => {
+    try {
+        return JSON.parse(localStorage.getItem(key)) ?? fallback;
+    } catch {
+        return fallback;
+    }
+};
 
+export const AppProvider = ({ children }) => {
+    const [darkMode, setDarkMode] = useState(() => stored('night', false));
+    const [regionId, setRegionId] = useState(() => stored('region', null));
+    const [isSimulating, setIsSimulating] = useState(false);
+    const [streamLog, setStreamLog] = useState([]);
     const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
 
-    const toggleTheme = () => setDarkMode(!darkMode);
-    const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+    useEffect(() => {
+        document.documentElement.classList.toggle('dark', darkMode);
+        localStorage.setItem('night', JSON.stringify(darkMode));
+    }, [darkMode]);
+
+    useEffect(() => {
+        if (regionId != null) localStorage.setItem('region', JSON.stringify(regionId));
+    }, [regionId]);
 
     const login = (token) => {
         localStorage.setItem('token', token);
@@ -23,22 +36,16 @@ export const AppProvider = ({ children }) => {
         setIsAuthenticated(false);
     };
 
-    useEffect(() => {
-        if (darkMode) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
-    }, [darkMode]);
-
     return (
-        <AppContext.Provider value={{
-            darkMode, toggleTheme,
-            sidebarOpen, toggleSidebar,
-            liveData, setLiveData,
-            isSimulating, setIsSimulating,
-            isAuthenticated, login, logout
-        }}>
+        <AppContext.Provider
+            value={{
+                darkMode, toggleTheme: () => setDarkMode((d) => !d),
+                regionId, setRegionId,
+                isSimulating, setIsSimulating,
+                streamLog, setStreamLog,
+                isAuthenticated, login, logout,
+            }}
+        >
             {children}
         </AppContext.Provider>
     );

@@ -1,88 +1,108 @@
-import React, { useState } from 'react';
-import { predictAQI } from '../services/api';
-import AQICard from '../components/AQICard';
-import { getHealthAdvisory } from '../utils/health';
-import { Loader2, ShieldCheck, AlertCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { predictAQI, errorText } from '../lib/api';
+import { POLLUTANTS, band, cigarettes, fmt } from '../lib/aqi';
+import ButterflyGauge, { verdict } from '../components/ButterflyGauge';
+
+const MAX = { pm25: 500, pm10: 800, no2: 300, co: 10, so2: 200, o3: 250, nh3: 150 };
+
+// Recognisable Indian air days, roughly sized from CPCB station records
+const SCENES = [
+    { name: 'Monsoon morning', v: { pm25: 12, pm10: 30, no2: 10, co: 0.3, so2: 5, o3: 20, nh3: 5 }, hour: 7, month: 7 },
+    { name: 'Weekday rush hour', v: { pm25: 85, pm10: 160, no2: 75, co: 1.9, so2: 18, o3: 45, nh3: 20 }, hour: 9, month: 11 },
+    { name: 'Diwali night', v: { pm25: 320, pm10: 520, no2: 110, co: 4.5, so2: 60, o3: 40, nh3: 45 }, hour: 23, month: 11 },
+    { name: 'Coal town in winter', v: { pm25: 240, pm10: 420, no2: 90, co: 3.2, so2: 140, o3: 70, nh3: 60 }, hour: 6, month: 1 },
+];
+
+const now = new Date();
 
 export default function Prediction() {
-    const [formData, setFormData] = useState({
-        PM2_5: 45.2, PM10: 89.1, NO2: 34.5, CO: 1.2, SO2: 12.4, O3: 45.8, NH3: 5.6,
-        hour: new Date().getHours(), day: new Date().getDate(), month: new Date().getMonth() + 1, weekday: new Date().getDay()
-    });
-
-    const [loading, setLoading] = useState(false);
+    const [v, setV] = useState(SCENES[1].v);
+    const [when, setWhen] = useState({ hour: now.getHours(), month: now.getMonth() + 1 });
     const [result, setResult] = useState(null);
     const [error, setError] = useState('');
 
-    const handleChange = (e) => setFormData({ ...formData, [e.target.name]: parseFloat(e.target.value) || 0 });
+    // live what-if: debounce the slider, never write to the database
+    useEffect(() => {
+        const t = setTimeout(async () => {
+            try {
+                const day = now.getDate();
+                const weekday = (now.getDay() + 6) % 7; // Monday = 0, as in training
+                const res = await predictAQI({
+                    PM2_5: v.pm25, PM10: v.pm10, NO2: v.no2, CO: v.co, SO2: v.so2, O3: v.o3, NH3: v.nh3,
+                    hour: when.hour, day, month: when.month, weekday,
+                });
+                setResult(res);
+                setError('');
+            } catch (e) {
+                setError(errorText(e, 'The model could not score these values.'));
+            }
+        }, 250);
+        return () => clearTimeout(t);
+    }, [v, when]);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
-        try {
-            const res = await predictAQI({ sensor_id: 1, ...formData });
-            setResult(res.data);
-        } catch (err) {
-            setError(err.response?.data?.detail || 'Failed to predict. Check backend connection.');
-        } finally {
-            setLoading(false);
-        }
-    };
+    const aqi = result?.predicted_AQI;
+    const b = band(aqi);
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
-            <div className="mb-8">
-                <h2 className="text-2xl font-bold tracking-tight mb-2">AQI Prediction Engine</h2>
-                <p className="text-slate-500">Input atmospheric parameters to forecast air quality index and receive health advisories instantly.</p>
+        <div className="space-y-8">
+            <header>
+                <h1 className="text-4xl md:text-5xl">Prediction lab</h1>
+                <p className="text-muted mt-2 max-w-[62ch]">
+                    Mix your own air and watch the model score it. Nothing here is saved; it’s a sandbox for asking “what if the traffic doubled?”
+                </p>
+            </header>
+
+            <div className="flex flex-wrap gap-2">
+                {SCENES.map((s) => (
+                    <button key={s.name} onClick={() => { setV(s.v); setWhen({ hour: s.hour, month: s.month }); }} className="btn btn-ghost !py-2 text-sm">
+                        {s.name}
+                    </button>
+                ))}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2 glass-card p-6">
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <h3 className="font-semibold text-lg border-b border-slate-200 dark:border-slate-700 pb-2 mb-4">Pollutant Levels (µg/m³)</h3>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                            {['PM2_5', 'PM10', 'NO2', 'CO', 'SO2', 'O3', 'NH3'].map((field) => (
-                                <div key={field}>
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">{field.replace('_', '.')}</label>
-                                    <input type="number" step="0.1" name={field} value={formData[field]} onChange={handleChange} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 outline-none" required />
-                                </div>
-                            ))}
-                        </div>
-
-                        <h3 className="font-semibold text-lg border-b border-slate-200 dark:border-slate-700 pb-2 mb-4 mt-6">Temporal Features</h3>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                            {['hour', 'day', 'month', 'weekday'].map((field) => (
-                                <div key={field}>
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">{field}</label>
-                                    <input type="number" name={field} value={formData[field]} onChange={handleChange} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 outline-none" required />
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="pt-4 flex items-center gap-4">
-                            <button type="submit" disabled={loading} className="btn-primary min-w-[140px]">
-                                {loading ? <Loader2 className="animate-spin mx-auto" size={20} /> : 'Predict AQI'}
-                            </button>
-                            {error && <span className="text-red-500 text-sm font-medium flex items-center gap-1"><AlertCircle size={16} /> {error}</span>}
-                        </div>
-                    </form>
-                </div>
-
-                <div className="md:col-span-1 space-y-6">
-                    <AQICard aqi={result?.predicted_AQI} title="Predicted AQI" className="h-[300px]" />
-                    {result && (() => {
-                        const advisory = getHealthAdvisory(result.predicted_AQI);
-                        return (
-                            <div className={`glass-card p-5 border-l-4 ${advisory?.border} ${advisory?.bg} dark:bg-slate-900/50`}>
-                                <h4 className={`text-lg font-black mb-2 flex items-center gap-2 ${advisory?.color}`}><ShieldCheck size={24} /> Health Risk: {advisory?.level}</h4>
-                                <p className="text-base font-bold text-slate-900 dark:text-white mt-1">
-                                    {advisory?.advice}
-                                </p>
+            <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
+                <section className="panel p-6 md:p-8 space-y-6">
+                    {POLLUTANTS.map((p) => (
+                        <div key={p.key}>
+                            <div className="flex justify-between items-baseline">
+                                <label htmlFor={p.key} className="font-semibold">{p.label}</label>
+                                <span className="tabular-nums"><strong>{fmt(v[p.key], p.key === 'co' ? 1 : 0)}</strong> <span className="text-muted text-sm">{p.unit}</span></span>
                             </div>
-                        );
-                    })()}
-                </div>
+                            <input id={p.key} type="range" min="0" max={MAX[p.key]} step={p.key === 'co' ? 0.1 : 1} value={v[p.key]}
+                                onChange={(e) => setV({ ...v, [p.key]: parseFloat(e.target.value) })}
+                                className="w-full mt-2 accent-[var(--leaf)]" />
+                        </div>
+                    ))}
+                    <div className="grid grid-cols-2 gap-4 pt-2">
+                        <div>
+                            <label htmlFor="hour" className="field-label">Hour of day</label>
+                            <input id="hour" type="number" min="0" max="23" className="field" value={when.hour}
+                                onChange={(e) => setWhen({ ...when, hour: Math.min(23, Math.max(0, +e.target.value || 0)) })} />
+                        </div>
+                        <div>
+                            <label htmlFor="month" className="field-label">Month</label>
+                            <select id="month" className="field" value={when.month} onChange={(e) => setWhen({ ...when, month: +e.target.value })}>
+                                {Array.from({ length: 12 }, (_, i) => (
+                                    <option key={i} value={i + 1}>{new Date(2024, i).toLocaleString([], { month: 'long' })}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <section className="panel p-6 md:p-8 lg:sticky lg:top-8 self-start" aria-live="polite">
+                    <p className="text-muted font-semibold">Predicted AQI</p>
+                    <p className="aqi-num font-display text-8xl leading-none mt-2" style={{ color: b?.color }}>{fmt(aqi)}</p>
+                    <p className="font-display text-2xl mt-2">{b?.name ?? '…'}</p>
+                    {error && <p className="mt-3 text-crimson font-semibold">{error}</p>}
+                    <ButterflyGauge aqi={aqi} className="h-44 mt-2" />
+                    <p className="font-display text-lg text-center">{verdict(aqi)}</p>
+                    <dl className="mt-6 space-y-3 text-sm">
+                        <div className="flex justify-between gap-4"><dt className="text-muted">Health risk</dt><dd className="font-semibold">{b?.risk ?? '—'}</dd></div>
+                        <div className="flex justify-between gap-4"><dt className="text-muted">Like smoking</dt><dd className="font-semibold">{fmt(cigarettes(v.pm25), 1)} cigarettes a day</dd></div>
+                    </dl>
+                    <p className="mt-4">{b?.advice}</p>
+                </section>
             </div>
         </div>
     );

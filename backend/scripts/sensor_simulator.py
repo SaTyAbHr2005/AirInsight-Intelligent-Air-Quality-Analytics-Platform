@@ -2,21 +2,14 @@ import requests
 import random
 import time
 import datetime
-import psycopg2
+import os
 
 # =============================
 # CONFIG
 # =============================
 
-API_URL = "http://127.0.0.1:8000/predict"
-
-DB_CONFIG = {
-    "host": "localhost",
-    "database": "air_quality_db",
-    "user": "postgres",
-    "password": "Satya@2005",
-    "port": "5432"
-}
+API_BASE = os.getenv("API_BASE", "http://127.0.0.1:8000")
+API_URL = f"{API_BASE}/predict"
 
 # =============================
 # SENSOR DEFINITIONS
@@ -46,28 +39,13 @@ sensors = [
 ]
 
 # =============================
-# DATABASE FUNCTIONS
+# NETWORK STATE
 # =============================
 
-def get_connection():
-    return psycopg2.connect(**DB_CONFIG)
-
-
 def get_active_sensors():
-    """
-    Fetch active sensor IDs from database
-    """
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("SELECT id FROM sensors WHERE is_active = TRUE")
-    rows = cursor.fetchall()
-
-    cursor.close()
-    conn.close()
-
-    active_ids = [row[0] for row in rows]
-    return active_ids
+    """Active sensor IDs, straight from the public API (admin toggles apply immediately)"""
+    sensors = requests.get(f"{API_BASE}/public/sensors", timeout=10).json()
+    return [s["sensor_id"] for s in sensors if s["is_active"]]
 
 
 # =============================
