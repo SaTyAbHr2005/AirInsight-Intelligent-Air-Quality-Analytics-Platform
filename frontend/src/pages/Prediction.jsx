@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { predictAQI, errorText } from '../lib/api';
 import { POLLUTANTS, band, cigarettes, fmt } from '../lib/aqi';
 import ButterflyGauge, { verdict } from '../components/ButterflyGauge';
+import AirParticles from '../components/AirParticles';
+import CountUp from '../components/CountUp';
 
 const MAX = { pm25: 500, pm10: 800, no2: 300, co: 10, so2: 200, o3: 250, nh3: 150 };
 
@@ -90,9 +92,11 @@ export default function Prediction() {
                     </div>
                 </section>
 
-                <section className="panel p-6 md:p-8 lg:sticky lg:top-8 self-start" aria-live="polite">
+                <section className="panel p-6 md:p-8 lg:sticky lg:top-8 self-start relative overflow-hidden isolate" aria-live="polite">
+                    {/* the mix you dialled in, made visible */}
+                    <AirParticles aqi={aqi} className="absolute inset-0 -z-10" intensity={1.4} />
                     <p className="text-muted font-semibold">Predicted AQI</p>
-                    <p className="aqi-num font-display text-8xl leading-none mt-2" style={{ color: b?.color }}>{fmt(aqi)}</p>
+                    <p className="aqi-num font-display text-8xl leading-none mt-2 transition-colors duration-500 relative" style={{ color: b?.color }}><CountUp value={aqi} duration={0.6} /></p>
                     <p className="font-display text-2xl mt-2">{b?.name ?? '…'}</p>
                     {error && <p className="mt-3 text-crimson font-semibold">{error}</p>}
                     <ButterflyGauge aqi={aqi} className="h-44 mt-2" />

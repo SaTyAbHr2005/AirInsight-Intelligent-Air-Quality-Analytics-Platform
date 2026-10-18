@@ -1,15 +1,33 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Circle, CircleMarker, MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, LogOut, Plus, Power, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import Wordmark from '../components/Wordmark';
+import CountUp from '../components/CountUp';
+import AirParticles from '../components/AirParticles';
 import { useAppContext } from '../context/AppContext';
 import { createSensor, deleteSensor, errorText, fetchSensors, updateSensorStatus, useLatest, useRegions } from '../lib/api';
 import { aqiColor, fmt } from '../lib/aqi';
 
 const EMPTY = { sensor_code: '', region_id: 1, latitude: '', longitude: '', radius: 20 };
+
+// Click anywhere on the mini-map to drop the sensor there
+function Picker({ onPick }) {
+    useMapEvents({ click: (e) => onPick(e.latlng) });
+    return null;
+}
+
+function Recenter({ lat, lon }) {
+    const map = useMap();
+    useEffect(() => {
+        if (lat && lon) map.flyTo([lat, lon], Math.max(map.getZoom(), 8), { duration: 0.8 });
+    }, [lat, lon, map]);
+    return null;
+}
 
 function DeployDialog({ open, onClose, regions }) {
     const [form, setForm] = useState(EMPTY);
@@ -79,6 +97,24 @@ function DeployDialog({ open, onClose, regions }) {
                                 <label htmlFor="lon" className="field-label">Longitude</label>
                                 <input id="lon" required type="number" step="any" className="field" value={form.longitude} onChange={set('longitude')} />
                             </div>
+                            <div className="col-span-2 h-48 rounded-xl overflow-hidden border border-line relative z-0">
+                                <MapContainer center={[19.3, 75.9]} zoom={6} className="h-full w-full cursor-crosshair">
+                                    <TileLayer className="journal-tiles" attribution="&copy; OpenStreetMap" url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                    <Picker onPick={(p) => {
+                                        // the nearest city becomes the sensor's region, so its pollution profile fits
+                                        const near = regions.reduce((a, r) => (Math.hypot(r.latitude - p.lat, r.longitude - p.lng) < Math.hypot(a.latitude - p.lat, a.longitude - p.lng) ? r : a), regions[0]);
+                                        setForm((f) => ({ ...f, latitude: p.lat.toFixed(4), longitude: p.lng.toFixed(4), region_id: near?.region_id ?? f.region_id }));
+                                    }} />
+                                    <Recenter lat={+form.latitude} lon={+form.longitude} />
+                                    {form.latitude && form.longitude && (
+                                        <>
+                                            <Circle center={[+form.latitude, +form.longitude]} radius={form.radius * 1000} pathOptions={{ color: '#3f8a5a', fillOpacity: 0.15, weight: 1.5 }} />
+                                            <CircleMarker center={[+form.latitude, +form.longitude]} radius={7} pathOptions={{ color: '#0f2a20', weight: 2, fillColor: '#ebc03f', fillOpacity: 1 }} />
+                                        </>
+                                    )}
+                                </MapContainer>
+                                <span className="absolute bottom-2 left-2 z-[500] rounded-full bg-surface/90 px-2.5 py-1 text-xs font-semibold pointer-events-none">Click the map to place the sensor</span>
+                            </div>
                             <div className="col-span-2">
                                 <label htmlFor="radius" className="field-label">Coverage radius: {form.radius} km</label>
                                 <input id="radius" type="range" min="5" max="60" value={form.radius} onChange={set('radius', Number)} className="w-full accent-[var(--leaf)]" />
@@ -126,9 +162,15 @@ export default function AdminDashboard() {
 
     const aqiOf = (id) => latest.find((r) => r.sensor_id === id)?.aqi;
     const online = sensors.filter((s) => s.is_active).length;
+    const stats = useMemo(() => {
+        const live = latest.filter((r) => sensors.some((s) => s.sensor_id === r.sensor_id && s.is_active));
+        const avg = live.length ? live.reduce((t, r) => t + r.aqi, 0) / live.length : null;
+        return { avg, worst: live[0], severe: live.filter((r) => r.aqi > 300).length };
+    }, [latest, sensors]);
 
     return (
-        <div className="min-h-screen bg-bg text-ink">
+        <div className="min-h-screen bg-bg text-ink relative isolate">
+            <AirParticles aqi={stats.avg} className="fixed inset-0 -z-10" intensity={0.8} />
             <header className="border-b border-line">
                 <div className="max-w-6xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
                     <Wordmark to="/dashboard" />
@@ -148,6 +190,21 @@ export default function AdminDashboard() {
                     <button onClick={() => setShowAdd(true)} className="btn btn-sulphur"><Plus size={18} /> Deploy a sensor</button>
                 </div>
 
+                <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[
+                        ['Online', online, `of ${sensors.length} sensors`, null],
+                        ['Network average', stats.avg, 'AQI across live sensors', aqiColor(stats.avg)],
+                        ['Above 300', stats.severe, 'sensors reading very poor or worse', 'var(--crimson)'],
+                        ['Worst right now', stats.worst?.aqi, stats.worst ? `${stats.worst.sensor_code}, ${stats.worst.region}` : '—', aqiColor(stats.worst?.aqi)],
+                    ].map(([label, v, sub, color], i) => (
+                        <motion.div key={label} className="panel p-5" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}>
+                            <p className="text-muted font-semibold">{label}</p>
+                            <p className="aqi-num font-display text-4xl mt-1" style={{ color: color ?? undefined }}><CountUp value={v} /></p>
+                            <p className="text-sm text-muted mt-1 truncate">{sub}</p>
+                        </motion.div>
+                    ))}
+                </section>
+
                 <section className="panel overflow-hidden">
                     {isLoading ? (
                         <div className="p-16 grid place-items-center"><Loader2 className="animate-spin" /></div>
@@ -158,8 +215,11 @@ export default function AdminDashboard() {
                                     <tr>{['Sensor', 'City', 'Latest AQI', 'Location', 'Radius', 'Status', ''].map((h, i) => <th key={i} className="px-6 py-4 font-semibold">{h}</th>)}</tr>
                                 </thead>
                                 <tbody className="divide-y divide-line">
-                                    {sensors.map((s) => (
-                                        <tr key={s.sensor_id} className={s.is_active ? '' : 'text-muted'}>
+                                    <AnimatePresence initial={false}>
+                                    {sensors.map((s, i) => (
+                                        <motion.tr key={s.sensor_id} layout className={s.is_active ? '' : 'text-muted'}
+                                            initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0, transition: { delay: Math.min(i, 20) * 0.02 } }}
+                                            exit={{ opacity: 0, x: 24, transition: { duration: 0.25 } }}>
                                             <td className="px-6 py-4">
                                                 <span className="font-semibold">{s.sensor_code}</span>
                                                 {s.source_station && <span className="block text-xs text-muted">History from CPCB {s.source_station}</span>}
@@ -198,8 +258,9 @@ export default function AdminDashboard() {
                                                     )}
                                                 </div>
                                             </td>
-                                        </tr>
+                                        </motion.tr>
                                     ))}
+                                    </AnimatePresence>
                                     {!sensors.length && (
                                         <tr><td colSpan="7" className="px-6 py-12 text-center text-muted">No sensors yet. Deploy one to start listening.</td></tr>
                                     )}

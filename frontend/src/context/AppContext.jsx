@@ -13,6 +13,7 @@ const stored = (key, fallback) => {
 export const AppProvider = ({ children }) => {
     const [darkMode, setDarkMode] = useState(() => stored('night', false));
     const [regionId, setRegionId] = useState(() => stored('region', null));
+    const [profile, setProfile] = useState(() => stored('profile', 'general'));
     const [isSimulating, setIsSimulating] = useState(false);
     const [streamLog, setStreamLog] = useState([]);
     const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
@@ -25,6 +26,10 @@ export const AppProvider = ({ children }) => {
     useEffect(() => {
         if (regionId != null) localStorage.setItem('region', JSON.stringify(regionId));
     }, [regionId]);
+
+    useEffect(() => {
+        localStorage.setItem('profile', JSON.stringify(profile));
+    }, [profile]);
 
     const login = (token) => {
         localStorage.setItem('token', token);
@@ -41,6 +46,7 @@ export const AppProvider = ({ children }) => {
             value={{
                 darkMode, toggleTheme: () => setDarkMode((d) => !d),
                 regionId, setRegionId,
+                profile, setProfile,
                 isSimulating, setIsSimulating,
                 streamLog, setStreamLog,
                 isAuthenticated, login, logout,

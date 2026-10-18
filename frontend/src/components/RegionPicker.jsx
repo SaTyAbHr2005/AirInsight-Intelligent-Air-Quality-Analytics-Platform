@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { useAppContext } from '../context/AppContext';
 import { useRegions } from '../lib/api';
 import { aqiColor, fmt } from '../lib/aqi';
@@ -19,7 +20,7 @@ export function useSelectedRegion() {
 export default function RegionPicker() {
     const { region, regions, setRegionId } = useSelectedRegion();
     return (
-        <div role="radiogroup" aria-label="City" className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+        <div role="radiogroup" aria-label="City" className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 no-scrollbar">
             {regions.map((r) => {
                 const on = r.region_id === region?.region_id;
                 return (
@@ -28,13 +29,14 @@ export default function RegionPicker() {
                         role="radio"
                         aria-checked={on}
                         onClick={() => setRegionId(r.region_id)}
-                        className={`shrink-0 flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
-                            on ? 'border-ink bg-ink text-bg' : 'border-line hover:border-muted'
+                        className={`relative shrink-0 flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
+                            on ? 'border-ink text-bg' : 'border-line hover:border-muted'
                         }`}
                     >
-                        <span className="h-2.5 w-2.5 rounded-full" style={{ background: aqiColor(r.aqi) }} />
-                        <span className="font-semibold">{r.region}</span>
-                        <span className={on ? 'opacity-80' : 'text-muted'}>{fmt(r.aqi)}</span>
+                        {on && <motion.span layoutId="region-pill" className="absolute inset-0 rounded-full bg-ink" transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
+                        <span className="relative h-2.5 w-2.5 rounded-full" style={{ background: aqiColor(r.aqi) }} />
+                        <span className="relative font-semibold">{r.region}</span>
+                        <span className={`relative ${on ? 'opacity-80' : 'text-muted'}`}>{fmt(r.aqi)}</span>
                     </button>
                 );
             })}

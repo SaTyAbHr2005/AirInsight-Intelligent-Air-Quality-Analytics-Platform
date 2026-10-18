@@ -1,4 +1,4 @@
-"""Canonical network definition — the data that lived in Postgres (schema.sql / factory_seed.py)."""
+"""Canonical network definition: 10 regions, 20 sensors and their pollution profiles."""
 
 # id, name, lat, lon — from factory_seed.py
 REGIONS = [

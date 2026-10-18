@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { motion } from 'framer-motion';
 import RegionPicker, { useSelectedRegion } from '../components/RegionPicker';
+import BreathingCalendar from '../components/BreathingCalendar';
+import CountUp from '../components/CountUp';
 import { useForecast, useHistory, useLatest } from '../lib/api';
 import { BANDS, POLLUTANTS, aqiColor, fmt } from '../lib/aqi';
 
@@ -44,22 +47,27 @@ function Segmented({ options, value, onChange, label }) {
 }
 
 export default function Trends() {
-    const { region } = useSelectedRegion();
+    const { region, regions } = useSelectedRegion();
+    const [compareId, setCompareId] = useState('');
     const [hours, setHours] = useState(24);
     const [pollutant, setPollutant] = useState('pm25');
     const { data: history = [], isLoading } = useHistory(region?.region_id, hours);
+    const { data: week = [] } = useHistory(region?.region_id, 168);
+    const { data: other = [] } = useHistory(compareId ? +compareId : null, hours);
+    const otherName = regions.find((r) => r.region_id === +compareId)?.region;
     const { data: latest = [] } = useLatest();
     const lead = latest.find((s) => s.region_id === region?.region_id);
     const { data: fc } = useForecast(lead?.sensor_id);
 
     const series = useMemo(() => {
-        const rows = history.map((h) => ({ ...h, time: time(h.timestamp, hours) }));
+        const otherBy = Object.fromEntries(other.map((o) => [o.timestamp, o.aqi]));
+        const rows = history.map((h) => ({ ...h, time: time(h.timestamp, hours), compare: otherBy[h.timestamp] }));
         if (rows.length && fc?.outlook) {
             rows[rows.length - 1].forecast = rows[rows.length - 1].aqi; // bridge the lines
             fc.outlook.forEach((o) => rows.push({ time: `${time(o.timestamp, hours)} (forecast)`, forecast: o.aqi }));
         }
         return rows;
-    }, [history, fc, hours]);
+    }, [history, other, fc, hours]);
 
     const vals = history.map((h) => h.aqi);
     const peak = vals.length ? Math.max(...vals) : null;
@@ -67,7 +75,7 @@ export default function Trends() {
     const first = vals[0], last = vals[vals.length - 1];
     const change = vals.length > 1 ? ((last - first) / first) * 100 : null;
     const p = POLLUTANTS.find((x) => x.key === pollutant);
-    const ceiling = Math.max(...series.map((r) => Math.max(r.aqi ?? 0, r.forecast ?? 0)), 0);
+    const ceiling = Math.max(...series.map((r) => Math.max(r.aqi ?? 0, r.forecast ?? 0, r.compare ?? 0)), 0);
     const ticks = [0, 50, 100, 200, 300, 400, 500].filter((t, i, a) => t <= ceiling || a[i - 1] < ceiling);
     const top = ticks[ticks.length - 1];
 
@@ -91,7 +99,7 @@ export default function Trends() {
                 ].map(([label, v]) => (
                     <div key={label} className="panel p-5">
                         <p className="text-muted font-semibold">{label}</p>
-                        <p className="aqi-num font-display text-4xl mt-1" style={{ color: aqiColor(v) }}>{fmt(v)}</p>
+                        <p className="aqi-num font-display text-4xl mt-1" style={{ color: aqiColor(v) }}><CountUp value={v} /></p>
                     </div>
                 ))}
                 <div className="panel p-5">
@@ -103,6 +111,20 @@ export default function Trends() {
             </section>
 
             <section className="panel p-4 md:p-7">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+                        <span className="flex items-center gap-2"><span className="h-0.5 w-5 bg-ink rounded" /> {region?.region}</span>
+                        <span className="flex items-center gap-2"><span className="h-0.5 w-5 border-t-2 border-dashed border-crimson" /> Forecast</span>
+                        {otherName && <span className="flex items-center gap-2"><span className="h-0.5 w-5 bg-sulphur rounded" /> {otherName}</span>}
+                    </div>
+                    <label className="flex items-center gap-2 text-sm">
+                        <span className="text-muted font-semibold">Compare with</span>
+                        <select value={compareId} onChange={(e) => setCompareId(e.target.value)} className="field !py-1.5 !w-auto">
+                            <option value="">No other city</option>
+                            {regions.filter((r) => r.region_id !== region?.region_id).map((r) => <option key={r.region_id} value={r.region_id}>{r.region}</option>)}
+                        </select>
+                    </label>
+                </div>
                 <div className="h-[380px]">
                     {isLoading ? (
                         <div className="h-full grid place-items-center text-muted">Reading the archive…</div>
@@ -117,12 +139,19 @@ export default function Trends() {
                                 <YAxis domain={[0, top]} ticks={ticks} tick={{ fill: 'var(--muted)', fontSize: 12 }} tickLine={false} axisLine={false} />
                                 <Tooltip content={<ChartTip />} />
                                 <Line type="monotone" dataKey="aqi" name="AQI" stroke="var(--ink)" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} />
+                                <Line type="monotone" dataKey="compare" name={otherName ?? 'Compare'} stroke="var(--sulphur)" strokeWidth={2.5} dot={false} isAnimationActive={false} connectNulls />
                                 <Line type="monotone" dataKey="forecast" name="Forecast" stroke="var(--crimson)" strokeWidth={2.5} strokeDasharray="6 5" dot={{ r: 3 }} isAnimationActive={false} />
                             </LineChart>
                         </ResponsiveContainer>
                     )}
                 </div>
             </section>
+
+            <motion.section initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-60px' }} className="panel p-4 md:p-7">
+                <h2 className="text-2xl">Breathing calendar</h2>
+                <p className="text-muted text-sm mt-1 mb-5">Every hour of the past week. Vertical stripes are the city’s daily rhythm; hover a square for its reading.</p>
+                <BreathingCalendar history={week} />
+            </motion.section>
 
             <section className="panel p-4 md:p-7">
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-5">

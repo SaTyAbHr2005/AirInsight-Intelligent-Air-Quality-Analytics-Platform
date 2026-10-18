@@ -40,3 +40,17 @@ export const dominantSource = (r) => {
 };
 
 export const fmt = (n, d = 0) => (n == null ? '—' : Number(n).toFixed(d));
+
+// Continuous colour along the band scale, for views (heatmaps) where in-band variation matters
+const STOPS = [[0, '#4e9f63'], [75, '#9fc04f'], [150, '#e2b53a'], [250, '#d4803a'], [350, '#c2415d'], [450, '#6e2a54'], [550, '#3d1530']];
+const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+export const aqiShade = (aqi) => {
+    if (aqi == null) return '#8a9a8f';
+    const found = STOPS.findIndex(([v]) => v >= aqi);
+    const i = found === -1 ? STOPS.length - 1 : Math.max(1, found);
+    const [v0, c0] = STOPS[i - 1] ?? STOPS[0];
+    const [v1, c1] = STOPS[i] ?? STOPS[STOPS.length - 1];
+    const t = Math.min(1, Math.max(0, (aqi - v0) / (v1 - v0 || 1)));
+    const [a, b] = [rgb(c0), rgb(c1)];
+    return `rgb(${a.map((x, k) => Math.round(x + (b[k] - x) * t)).join(',')})`;
+};

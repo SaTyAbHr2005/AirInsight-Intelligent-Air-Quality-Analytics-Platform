@@ -1,7 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Box, Map as MapIcon } from 'lucide-react';
 import { Circle, CircleMarker, MapContainer, Popup, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useLatest, usePublicSensors } from '../lib/api';
+import { useLatest, usePublicSensors, useRegions } from '../lib/api';
+import { useAppContext } from '../context/AppContext';
+
+const RegionTowers = lazy(() => import('../three/RegionTowers'));
 import { aqiColor, band, cigarettes, fmt } from '../lib/aqi';
 
 const FILTERS = [
@@ -23,6 +29,11 @@ export default function MapView() {
     const { data: latest = [] } = useLatest();
     const [filter, setFilter] = useState('all');
     const [focus, setFocus] = useState(null);
+    const [view, setView] = useState('flat');
+    const { data: regions = [] } = useRegions();
+    const { darkMode, setRegionId } = useAppContext();
+    const navigate = useNavigate();
+    const openCity = (r) => { setRegionId(r.region_id); navigate('/dashboard'); };
 
     const nodes = useMemo(() => {
         const byId = Object.fromEntries(latest.map((r) => [r.sensor_id, r]));
@@ -38,7 +49,19 @@ export default function MapView() {
             <header className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <h1 className="text-4xl md:text-5xl">Where the air is heaviest</h1>
-                    <p className="text-muted mt-2">Each circle is a sensor’s coverage area, coloured by its latest reading.</p>
+                    <p className="text-muted mt-2">
+                        {view === 'flat' ? 'Each circle is a sensor’s coverage area, coloured by its latest reading.' : 'Each tower is a city, as tall as its AQI. Drag to orbit, scroll to zoom, click a tower to open it.'}
+                    </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                <div role="radiogroup" aria-label="Map view" className="inline-flex rounded-full border border-line p-1 text-sm">
+                    {[['flat', 'Flat', MapIcon], ['3d', '3D towers', Box]].map(([v, label, Icon]) => (
+                        <button key={v} role="radio" aria-checked={view === v} onClick={() => setView(v)}
+                            className="relative px-3.5 py-1.5 rounded-full font-semibold flex items-center gap-1.5">
+                            {view === v && <motion.span layoutId="map-view-pill" className="absolute inset-0 rounded-full bg-ink" transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
+                            <span className={`relative flex items-center gap-1.5 ${view === v ? 'text-bg' : 'text-muted hover:text-ink'}`}><Icon size={15} /> {label}</span>
+                        </button>
+                    ))}
                 </div>
                 <div role="radiogroup" aria-label="Filter sensors" className="inline-flex rounded-full border border-line p-1 text-sm">
                     {FILTERS.map((f) => (
@@ -48,11 +71,21 @@ export default function MapView() {
                         </button>
                     ))}
                 </div>
+                </div>
             </header>
 
             <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
                 <div className="panel overflow-hidden h-[65vh] min-h-[420px] relative z-0">
                     {isLoading && <div className="absolute inset-0 z-[500] grid place-items-center bg-bg/60 text-muted">Locating sensors…</div>}
+                    <AnimatePresence mode="wait">
+                    {view === '3d' ? (
+                        <motion.div key="3d" className="absolute inset-0" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
+                            <Suspense fallback={<div className="h-full grid place-items-center text-muted">Raising the towers…</div>}>
+                                <RegionTowers regions={regions} sensors={nodes} onSelect={openCity} dark={darkMode} />
+                            </Suspense>
+                        </motion.div>
+                    ) : (
+                    <motion.div key="flat" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                     <MapContainer center={[19.3, 75.9]} zoom={6} className="h-full w-full" scrollWheelZoom>
                         <TileLayer
                             className="journal-tiles"
@@ -96,6 +129,9 @@ export default function MapView() {
                             );
                         })}
                     </MapContainer>
+                    </motion.div>
+                    )}
+                    </AnimatePresence>
                 </div>
 
                 <aside className="panel p-4 max-h-[65vh] overflow-y-auto">
@@ -103,7 +139,7 @@ export default function MapView() {
                     <ol>
                         {nodes.map((s, i) => (
                             <li key={s.sensor_id}>
-                                <button onClick={() => setFocus({ ...s })} className="w-full flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-raised text-left">
+                                <button onClick={() => (view === '3d' ? openCity(s) : setFocus({ ...s }))} className="w-full flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-raised text-left">
                                     <span className="text-muted w-5 text-right tabular-nums">{i + 1}</span>
                                     <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: s.is_active ? aqiColor(s.reading?.aqi) : '#8a9a8f' }} />
                                     <span className="flex-1 min-w-0">

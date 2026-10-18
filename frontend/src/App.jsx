@@ -1,9 +1,9 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
-import Shell from './components/Shell';
 import { useAppContext } from './context/AppContext';
 import { Glyph } from './components/Wordmark';
 
+const Shell = lazy(() => import('./components/Shell'));
 const Story = lazy(() => import('./pages/Story'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Trends = lazy(() => import('./pages/Trends'));

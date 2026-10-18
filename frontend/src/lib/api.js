@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
 
-// Vercel/Render: set VITE_API_URL to the backend origin. Docker/dev: '/api' is proxied.
+// Production: VITE_API_URL is the API origin. Local dev: '/api' is proxied by Vite to localhost:8000.
 export const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || '/api' });
 
 api.interceptors.request.use((config) => {
@@ -39,3 +39,17 @@ export const errorText = (e, fallback) => {
     if (Array.isArray(d)) return d.map((x) => x.msg).join('; ');
     return d || (e?.response ? fallback : 'Cannot reach the AirInsight server. Check that the backend is running.');
 };
+
+// Assistant: personal advisories and chat, grounded in live readings (Gemini -> Groq -> rules)
+export const useProfiles = () =>
+    useQuery({ queryKey: ['profiles'], queryFn: () => get('/assistant/profiles'), staleTime: Infinity });
+export const useAdvisory = (regionId, profile) =>
+    useQuery({
+        queryKey: ['advisory', regionId, profile],
+        queryFn: () => api.post('/assistant/advisory', { region_id: regionId, profile }).then((r) => r.data),
+        enabled: !!regionId,
+        staleTime: 5 * 60_000,
+        retry: 0,
+    });
+export const askAssistant = (regionId, profile, messages) =>
+    api.post('/assistant/chat', { region_id: regionId, profile, messages }).then((r) => r.data);

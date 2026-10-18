@@ -1,74 +1,143 @@
-# AirInsight: Decentralized Smart Air Quality Monitoring & Predictive Analytics 🌍 
+# AirInsight
 
-## Overview
-AirInsight is a comprehensive Smart City solution that deploys a decentralized virtual air quality monitoring network. Designed to analyze pollution patterns across various regions, the system collects real-time localized data, uses machine learning to estimate Current AQI, and deploys time-series forecasting models to predict future air quality trends. 
+**Live:** https://airinsight-mh.vercel.app
 
-This platform acts as an integrated decision-support system, providing real-time geographical visualizations, health advisories, and actionable insights for both citizens and local city authorities.
+AirInsight follows a Common Grass Yellow butterfly through a Maharashtra meadow as the air around it fills with smog, then hands you the tools to read that air yourself. A network of 20 sensors across 10 cities reports pollutant levels. CatBoost models turn them into an AQI and a six-hour forecast, and an AI assistant turns the numbers into advice for the person asking.
 
-## Core Features
-* **Decentralized Virtual Sensor Network**: Simulates diverse geographical hardware nodes continuously streaming localized environmental telemetry (PM2.5, PM10, NO2, CO, SO2, O3, NH3).
-* **Real-Time Predictive Modeling**: Utilizes an advanced CatBoost Regression pipeline to dynamically calculate live AQI and isolate specific primary pollution sources (Traffic, Industrial, Construction etc.).
-* **Time-Series Forecasting**: Deploys secondary Lag-based CatBoost architectures to forecast upcoming next-hour AQI trends, providing proactive risk warnings.
-* **Interactive Geo-Spatial Mapping**: Visualizes the entire sensor network on a live interactive OpenStreetMap utilizing Leaflet, color-coded strictly by Health Impact categories.
-* **Intelligent Admin Control Panel**: Provides secured, JWT-authenticated capabilities for administrators to remotely provision, toggle, and permanently decommission regional hardware sensors.
-* **Contextual Health Advisories**: Automatically maps extreme pollution conditions to actionable public health guidance.
+## What's inside
 
-## Architecture & Data Flow
-1. **Edge Telemetry**: Virtual Sensors distributed across regions stream raw atmospheric composition data.
-2. **Ingestion & Validation**: FastAPI backend securely validates and processes the incoming telemetry.
-3. **Machine Learning Pipeline**: Data is fed into pre-trained CatBoost models to evaluate real-time hazards and formulate future predictions.
-4. **Persistent Storage**: Readings, sensors and regions live in MongoDB (Atlas in production). Sensor histories are seeded from real CPCB hourly station records, and the network keeps reporting on its own every 15 minutes, with no background worker needed.
-5. **Client Presentation**: The React Frontend fetches refined data to render responsive, high-fidelity real-time dashboards and geographical heatmaps. 
+### The story (home page)
+A scroll-driven 3D scene (three.js, GSAP ScrollTrigger, Lenis). The meadow fills with haze, the butterfly is grounded on a flower, sensor beacons rise at each city's real coordinates, and the air clears. The live AQI, the cigarette equivalent and the forecast are written into the story as you scroll.
 
-## Technology Stack
-* **Frontend:** React 19, Vite, Tailwind CSS v4, three.js with React Three Fiber and Drei (3D story and butterfly gauge), GSAP ScrollTrigger and Lenis (scroll storytelling), TanStack Query, Framer Motion, Recharts, React Leaflet, Sonner
-* **Backend:** Python, FastAPI, PyMongo
-* **Machine Learning:** CatBoost Regressors (AQI estimation and lag-based forecasting)
-* **Database:** MongoDB Atlas
-* **Infrastructure:** Render (API), Vercel (frontend); Docker Compose for local runs
+### The observatory
+| Page | What it does |
+|---|---|
+| **Today** | City AQI with count-up numbers, a 3D butterfly whose flight follows the air, a personal health advisory, a six-hour outlook with the best time to step out, a cigarette equivalent, the main pollution source, and per-pollutant bars against safe limits |
+| **Trends** | Hourly history (day, 3 days, week) with the forecast overlaid, a comparison against any other city, a **breathing calendar** (7-day × 24-hour heatmap of daily rhythms), and per-pollutant charts |
+| **Map** | Flat Leaflet map of sensor coverage, or **3D towers** (one per city, height = AQI) to orbit and click into |
+| **Prediction lab** | Pollutant sliders and real-world presets scored live by the model. Nothing is saved |
+| **Simulator** (admin) | Stages a pollution event in any city; every page reacts |
+
+Extras: a **Ctrl+K** command palette, day and night themes, ambient pollution particles behind each page that follow the selected city's AQI, and animated sign-in pages with a 3D butterfly swarm.
+
+### Air assistant
+- **Personal advisories** for 8 profiles: everyone, asthma, heart condition, children, older adults, pregnancy, outdoor workers, runners.
+- **A chat** available on every page.
+- **Grounded:** the model receives the city's live readings, pollutant ratios and forecast, and is told to use only those numbers.
+- **Provider chain:** Gemini first, Groq as backup, then a built-in rules engine based on CPCB health guidance. Advice never goes blank.
+- **Scoped:** off-topic requests and attempts to override its rules ("ignore your instructions", role-play) get a fixed refusal written by the server, not the model.
+- **Quota-friendly:** answers are cached per city, profile and reading, and each IP is limited to 20 requests per 5 minutes.
+
+### Admin
+JWT sign-in. Admins deploy sensors by clicking a mini-map (the nearest city is picked for you), pause and resume them, remove them with their history, and see network stats at a glance.
+
+## How it works
+
+1. **Seed data:** each of the 20 sensors starts with a real 7-day window of hourly readings from a different CPCB monitoring station, matched to that sensor's pollution profile and shifted to end at the present (`backend/app/seed_readings.json.gz`, built by `scripts/build_seed_fixture.py`).
+2. **Live network:** the API has no background worker. Whenever a request finds the newest reading more than 15 minutes old, every active sensor reports once: a mean-reverting random walk with a night-time peak, scored by the AQI model. This keeps the free Render tier working.
+3. **Models:** `aqi_model.pkl` maps 7 pollutants plus time features to an AQI. `aqi_forecast_model.pkl` predicts the next hour from AQI lags of 1, 2, 3 and 6 hours, applied recursively for a six-hour outlook.
+4. **Storage:** MongoDB Atlas holds regions, sensors, readings (45-day TTL index to stay inside the free tier) and admins.
+
+## Tech stack
+
+- **Frontend:** React 19, Vite, Tailwind CSS v4, three.js with React Three Fiber and Drei, GSAP ScrollTrigger, Lenis, Framer Motion, TanStack Query, Recharts, React Leaflet, cmdk, Sonner
+- **Backend:** Python 3.11, FastAPI, PyMongo, CatBoost, python-jose (JWT), bcrypt
+- **AI:** Google Gemini (primary), Groq (backup), rules engine (fallback)
+- **Data:** MongoDB Atlas
+- **Hosting:** Render (API), Vercel (frontend)
+
+## Project layout
+
+```
+backend/
+  app/
+    main.py          API routes
+    assistant.py     advisories + chat (Gemini -> Groq -> rules), topic guard, rate limit
+    engine.py        model inference, self-ticking network, forecast
+    queries.py       shared read models
+    seed.py          seeds an empty database
+    seed_data.py     regions, sensors, pollutant profiles
+    db.py, auth.py
+  models/            trained CatBoost models (committed; the API loads them)
+  scripts/           training, data cleaning, seed fixture builder, CLI simulator
+frontend/
+  src/pages/         Story, Dashboard, Trends, MapView, Prediction, Simulator, admin pages
+  src/three/         3D scenes: butterfly, story meadow, swarm, region towers
+  src/components/    shell, assistant, advisory panel, calendar, palette, particles
+render.yaml          Render blueprint for the API
+frontend/vercel.json SPA routing for Vercel
+```
 
 ## Running locally
 
-```bash
-# 1. MongoDB: either a local instance or your Atlas URI in backend/.env (see backend/.env.example)
-docker run -d --name airinsight-mongo -p 27017:27017 mongo:7
+You need Python 3.11+, Node 20+, and a MongoDB connection string (a free Atlas cluster works).
 
-# 2. API (seeds an empty database on first start)
+```bash
 cd backend
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+```
 
-# 3. Frontend (proxies /api to localhost:8000)
+Copy `backend/.env.example` to `backend/.env` and fill in at least `MONGODB_URI`. Then start the API; it seeds an empty database on first start:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+In a second terminal, start the frontend. It proxies `/api` to `localhost:8000`:
+
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Reseed at any time with `python -m app.seed --reset` from `backend/`. Default local admin: `admin1` / `admin123` (set `ADMIN_PASSWORD` to change it).
+Reseed from `backend/` with `python -m app.seed --reset`. To retrain the models or run the data scripts, install `requirements-train.txt` as well.
+
+### Environment variables (`backend/.env`)
+
+| Variable | Purpose |
+|---|---|
+| `MONGODB_URI`, `MONGODB_DB` | Atlas connection and database name |
+| `SECRET_KEY`, `ALGORITHM`, `ACCESS_TOKEN_EXPIRE_HOURS` | JWT signing |
+| `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_EMAIL` | Bootstrap admin, created when an empty database is seeded |
+| `ALLOW_ADMIN_SIGNUP` | `false` in production so strangers can't create admin accounts |
+| `CORS_ORIGINS` | Comma-separated frontend origins, e.g. `https://airinsight-mh.vercel.app` |
+| `TICK_MINUTES` | Minutes between network check-ins (default 15) |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | Primary assistant model (default `gemini-3.8-flash`) |
+| `GROQ_API_KEY`, `GROQ_MODEL` | Backup assistant model (default `openai/gpt-oss-120b`) |
+
+The frontend needs one variable in production: `VITE_API_URL`, the API's public URL.
 
 ## Deployment (free tier)
 
-1. **MongoDB Atlas**: create a free M0 cluster, a database user, and allow network access from `0.0.0.0/0`. Copy the connection string.
-2. **Render (API)**: New, then Blueprint, then pick this repo. `render.yaml` creates the `airinsight-api` web service. Fill in `MONGODB_URI`, `ADMIN_PASSWORD` and `CORS_ORIGINS` (your Vercel URL). On first boot the API seeds Atlas automatically.
-3. **Vercel (frontend)**: import the repo with **Root Directory** `frontend`. Set `VITE_API_URL` to the Render URL, e.g. `https://airinsight-api.onrender.com`.
+1. **MongoDB Atlas:** create an M0 cluster and a database user, and allow network access from `0.0.0.0/0`.
+2. **Render (API):** choose New, then Blueprint, then this repo. `render.yaml` defines `airinsight-api`. Fill in `MONGODB_URI`, `ADMIN_PASSWORD`, `CORS_ORIGINS`, `GEMINI_API_KEY` and `GROQ_API_KEY`.
+3. **Vercel (frontend):** import the repo with Root Directory `frontend`, and set `VITE_API_URL` to the Render URL.
 
-Render's free plan sleeps after 15 idle minutes, so the first request after a nap takes around 50 seconds. When it wakes, the sensor network catches up with a fresh round of readings.
+Render's free plan sleeps after 15 idle minutes, so the first request afterwards takes about 50 seconds. On waking, the network catches up with a fresh round of readings.
 
-## Project Impact
+## API
 
-### 🛡️ For Citizens
-* **Real-time Awareness**: Check localized AQI seamlessly from anywhere via the Web Dashboard.
-* **Health Safety**: Contextualized, straightforward public-health guidance natively derived from scientific severity indices.
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/latest` | Latest reading per sensor |
+| GET | `/regions` | City averages with coordinates and active sensor counts |
+| GET | `/public/sensors` | Sensor locations, radii and status |
+| GET | `/history/{region_id}?hours=` | Hourly city average, oldest first |
+| GET | `/forecast/{sensor_id}?hours=` | Next-hour AQI plus a 1 to 24 hour outlook |
+| GET | `/top-polluted` | Five worst cities |
+| POST | `/predict?persist=` | Scores pollutant values; `persist=true` stores them as a reading |
+| GET | `/assistant/profiles` | Health profiles for advisories |
+| POST | `/assistant/advisory` | `{region_id, profile}` gives a personal advisory |
+| POST | `/assistant/chat` | `{region_id, profile, messages}` gives a grounded, scoped reply |
+| POST | `/admin/login`, `/admin/register` | Admin auth (registration gated by `ALLOW_ADMIN_SIGNUP`) |
+| GET, POST, PUT, DELETE | `/admin/sensors`, `/admin/sensor/...` | Sensor management (JWT required) |
 
-### 🏛️ For Local Authorities
-* **Hotspot Detection**: Instantaneous tracking isolating the worst affected environments on a live topological map.
-* **Source Isolation**: Pinpointing precise mathematical origin causes (e.g. Traffic vs Construction) dynamically informing policy responses natively within seconds.
+Interactive docs are served at `/docs`.
 
-## Future Scope
-While the core analytical platform is flawlessly structured and deployed, the overarching infrastructure is inherently designed to massively scale dynamically over subsequent iterations:
+## Future scope
 
-1. **Physical Hardware Integration**: Transitioning the virtual telemetry pipelines directly to physical, low-cost micro-controller IoT sensors installed across physical urban environments.
-2. **Alert Broadcasting System**: Integrating SMS, Email, or Web-Socket push notifications directly to citizens when their hyper-local network sectors spontaneously detect extremely critical PM2.5 atmospheric spikes.
-3. **Advanced Anomaly Detection Systems**: Implementing advanced structural algorithms (like Isolation Forests) natively alongside CatBoost models to instantly identify and alarm operators to entirely unnatural chemical signatures (e.g., highly localized industrial invisible gas leaks in factory districts).
-4. **Native Mobile Application Suite**: Porting the responsive web dashboard inherently into a compiled cross-platform React Native / Flutter mobile application designed purely for broader systemic citizen engagement.
-5. **Cross-State Scaling Configurations**: Expanding the micro-regional focus dynamically across boundaries by continuously ingesting vast topological, wind vectors, and deeper meteorological data sets to support state-wide networking topologies.
+- Physical low-cost IoT sensors feeding the same `/predict` endpoint
+- Push alerts when a saved city crosses a threshold
+- Anomaly detection for unusual chemical signatures, such as industrial leaks
+- Wind and weather inputs for better forecasts

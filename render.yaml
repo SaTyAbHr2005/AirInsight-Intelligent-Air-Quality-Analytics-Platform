@@ -28,3 +28,7 @@ services:
         sync: false
       - key: CORS_ORIGINS # e.g. https://airinsight.vercel.app
         sync: false
+      - key: GEMINI_API_KEY # primary AI for advisories and chat
+        sync: false
+      - key: GROQ_API_KEY # backup AI if Gemini fails or runs out of quota
+        sync: false
