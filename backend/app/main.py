@@ -21,7 +21,7 @@ from app.seed_data import POLLUTANTS
 async def lifespan(_):
     db.ensure_indexes()
     if os.getenv("AUTO_SEED", "true").lower() == "true":
-        seed()
+        seed()  # also (re)creates the bootstrap admin if it's missing
     yield
 
 

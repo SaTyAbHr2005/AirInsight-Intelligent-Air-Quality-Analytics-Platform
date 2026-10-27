@@ -21,10 +21,26 @@ from app.engine import get_category
 FIXTURE = Path(__file__).parent / "seed_readings.json.gz"
 
 
+def ensure_admin():
+    """Create the bootstrap admin if that username doesn't exist. Runs on every startup, so deleting
+    the admin document and restarting resets its password to ADMIN_PASSWORD; other admins are untouched."""
+    username = os.getenv("ADMIN_USERNAME", "admin1")
+    if db.admins.find_one({"username": username}):
+        return False
+    db.admins.insert_one({
+        "_id": db.next_id("admins"), "username": username,
+        "email": os.getenv("ADMIN_EMAIL", "admin@airinsight.local"),
+        "password_hash": hash_password(os.getenv("ADMIN_PASSWORD", "admin123")),
+    })
+    print(f"Created admin '{username}'")
+    return True
+
+
 def seed(reset=False):
     if reset:
         for c in ("regions", "sensors", "readings", "counters"):
             db.db.drop_collection(c)
+    ensure_admin()
     if db.regions.count_documents({}):
         return False
 
@@ -60,14 +76,7 @@ def seed(reset=False):
     for name, coll in (("regions", db.regions), ("sensors", db.sensors)):
         db.db.counters.update_one({"_id": name}, {"$set": {"seq": coll.count_documents({})}}, upsert=True)
 
-    username = os.getenv("ADMIN_USERNAME", "admin1")
-    if not db.admins.find_one({"username": username}):
-        db.admins.insert_one({
-            "_id": db.next_id("admins"), "username": username,
-            "email": os.getenv("ADMIN_EMAIL", "admin@airinsight.local"),
-            "password_hash": hash_password(os.getenv("ADMIN_PASSWORD", "admin123")),
-        })
-    print(f"Seeded {len(REGIONS)} regions, {len(SENSORS)} sensors, {len(docs)} readings, admin '{username}'")
+    print(f"Seeded {len(REGIONS)} regions, {len(SENSORS)} sensors, {len(docs)} readings")
     return True
 
 
